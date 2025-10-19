@@ -1,8 +1,14 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { mockProjects } from '@/data/mockProjects';
-import { Project } from '@/types/project';
+import ProjectDetails from '@/components/ProjectDetails';
+import TasksPanel from '@/components/TasksPanel';
+import Modal from '@/components/Modal';
+import LoginDialog from '@/components/LoginDialog';
+import { useAppSelector } from '@/store/hooks';
+import { selectCurrentUser } from '@/store/selectors';
 
 const ProjectDetailPage = () => {
   const params = useParams();
@@ -10,6 +16,11 @@ const ProjectDetailPage = () => {
   const projectId = params.id as string;
   
   const project = mockProjects.find(p => p.id === projectId);
+  const user = useAppSelector(selectCurrentUser);
+  const [tab, setTab] = useState<'desc' | 'tasks'>('desc');
+  const [showEdit, setShowEdit] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const tasks = useMemo(() => [], []);
 
   if (!project) {
     return (
@@ -94,7 +105,7 @@ const ProjectDetailPage = () => {
 
           {/* Действия */}
           <div className="flex flex-col gap-3">
-            <button className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+            <button className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors" onClick={() => user ? setShowEdit(true) : setShowLogin(true)}>
               Редактировать
             </button>
             <button className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -104,93 +115,34 @@ const ProjectDetailPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Основная информация */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Детали проекта */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Детали проекта
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Дата начала</h3>
-                <p className="text-gray-900">
-                  {new Date(project.startDate).toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
-              {project.endDate && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Дата завершения</h3>
-                  <p className="text-gray-900">
-                    {new Date(project.endDate).toLocaleDateString('ru-RU', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                </div>
-              )}
-              {project.curator && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Клиент</h3>
-                  <p className="text-gray-900">{project.curator}</p>
-                </div>
-              )}
-            </div>
+      {/* Табы по вайрфрейму */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-6 pt-4 border-b">
+          <div className="inline-flex items-center gap-1 bg-gray-100 rounded-md p-1">
+            <button className={`px-3 py-1 rounded ${tab==='desc' ? 'bg-white border' : ''}`} onClick={() => setTab('desc')}>Описание</button>
+            <button className={`px-3 py-1 rounded ${tab==='tasks' ? 'bg-white border' : ''}`} onClick={() => setTab('tasks')}>Задачи</button>
           </div>
         </div>
-
-        {/* Боковая панель */}
-        <div className="space-y-6">
-          {/* Команда */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Команда ({project.team.length})
-            </h2>
-            <div className="space-y-4">
-              {project.team.map((member) => (
-                <div key={member.id} className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium">
-                      {member.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{member.name}</p>
-                    <p className="text-sm text-gray-500">{member.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Быстрые действия */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Быстрые действия
-            </h2>
-            <div className="space-y-3">
-              <button className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="font-medium text-gray-900">Добавить задачу</div>
-                <div className="text-sm text-gray-500">Создать новую задачу в проекте</div>
-              </button>
-              <button className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="font-medium text-gray-900">Загрузить файлы</div>
-                <div className="text-sm text-gray-500">Добавить документы и ресурсы</div>
-              </button>
-              <button className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="font-medium text-gray-900">Создать отчет</div>
-                <div className="text-sm text-gray-500">Сгенерировать отчет по проекту</div>
-              </button>
-            </div>
-          </div>
+        <div className="p-6">
+          {tab === 'desc' ? (
+            <ProjectDetails project={project} />
+          ) : (
+            <TasksPanel tasks={tasks} />
+          )}
         </div>
       </div>
+
+      {/* Модалки */}
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Редактирование проекта" actions={
+        <>
+          <button className="px-4 py-2 border rounded-md" onClick={() => setShowEdit(false)}>Отмена</button>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-md" onClick={() => setShowEdit(false)}>Сохранить</button>
+        </>
+      }>
+        <ProjectDetails project={project} />
+      </Modal>
+
+      <LoginDialog open={showLogin} onClose={() => setShowLogin(false)} />
     </div>
   );
 };

@@ -2,17 +2,41 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { loadProjectsFromTimpr } from '@/store/slices/projectsSlice';
 import ProjectCard from '@/components/ProjectCard';
 import { mockProjects } from '@/data/mockProjects';
-import { Project } from '@/types/project';
 
 const ActivePage = () => {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { status, error } = useAppSelector((state) => state.projects);
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoadingFromTimpr, setIsLoadingFromTimpr] = useState(false);
 
   const handleProjectClick = (projectId: string) => {
     router.push(`/projects/${projectId}`);
+  };
+
+  const handleCreateProject = () => {
+    // Создаем временный ID для нового проекта
+    const tempId = `new-${Date.now()}`;
+    // Переходим на страницу создания проекта с пустыми данными
+    router.push(`/projects/${tempId}?mode=create`);
+  };
+
+  const handleLoadFromTimpr = async () => {
+    setIsLoadingFromTimpr(true);
+    try {
+      await dispatch(loadProjectsFromTimpr()).unwrap();
+      alert('Проекты успешно загружены из Тимпр!');
+    } catch (error) {
+      console.error('Ошибка загрузки проектов из Тимпр:', error);
+      alert('Ошибка при загрузке проектов из Тимпр. Проверьте консоль для деталей.');
+    } finally {
+      setIsLoadingFromTimpr(false);
+    }
   };
 
   const filteredProjects = mockProjects.filter(project => {
@@ -91,6 +115,23 @@ const ActivePage = () => {
               ))}
             </select>
           </div>
+
+          {/* Кнопки действий */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreateProject}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+            >
+              Создать
+            </button>
+            <button
+              onClick={handleLoadFromTimpr}
+              disabled={isLoadingFromTimpr}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isLoadingFromTimpr ? 'Загрузка...' : 'Выгрузить список проектов из тимпр'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -117,6 +158,7 @@ const ActivePage = () => {
           </p>
         </div>
       )}
+
     </div>
   );
 };

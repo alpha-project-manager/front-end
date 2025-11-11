@@ -1,5 +1,4 @@
 import { API_CONFIG } from '@/config/api';
-import type { RootState } from '@/store';
 
 /**
  * Типы для API ответов
@@ -51,13 +50,24 @@ class ApiClient {
    */
   private getHeaders(customHeaders?: HeadersInit, customToken?: string): HeadersInit {
     const token = this.getAuthToken(customToken);
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...customHeaders,
-    };
+
+    // Use Headers instance to safely set headers regardless of incoming HeadersInit shape
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/json');
+
+    if (customHeaders) {
+      // customHeaders can be Headers, [string, string][], or Record<string, string>
+      if (customHeaders instanceof Headers) {
+        customHeaders.forEach((value, key) => headers.set(key, value));
+      } else if (Array.isArray(customHeaders)) {
+        customHeaders.forEach(([key, value]) => headers.set(key, value));
+      } else {
+        Object.entries(customHeaders).forEach(([key, value]) => headers.set(key, value as string));
+      }
+    }
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.set('Authorization', `Bearer ${token}`);
     }
 
     return headers;

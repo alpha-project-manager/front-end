@@ -40,7 +40,10 @@ const ActivePage = () => {
     }
   };
 
-  const filteredProjects = mockProjects.filter(project => {
+  // Показываем только активные проекты
+  const activeProjects = mockProjects.filter(project => project.status === 'active' || !project.status);
+
+  const filteredProjects = activeProjects.filter(project => {
     const matchesFilter = filter === 'all' || project.theme === filter;
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,11 +51,11 @@ const ActivePage = () => {
     return matchesFilter && matchesSearch;
   });
 
-  // Получаем уникальные темы
-  const themes = Array.from(new Set(mockProjects.map(project => project.theme)));
+  // Получаем уникальные темы среди активных проектов
+  const themes = Array.from(new Set(activeProjects.map(project => project.theme)));
 
   const getThemeCount = (theme: string) => {
-    return mockProjects.filter(project => project.theme === theme).length;
+    return activeProjects.filter(project => project.theme === theme).length;
   };
 
   return (
@@ -70,7 +73,7 @@ const ActivePage = () => {
         <div className="overflow-x-auto">
           <div className="flex gap-4 pb-2 min-w-max">
             <div className="text-center p-4 bg-gray-50 rounded-lg min-w-[120px] flex-shrink-0">
-              <div className="text-2xl font-bold text-gray-900">{mockProjects.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{activeProjects.length}</div>
               <div className="text-sm text-gray-600">Всего</div>
             </div>
             {themes.map((theme, index) => {

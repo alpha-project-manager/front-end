@@ -8,6 +8,7 @@ export interface Project {
   team: TeamMember[];
   image?: string;
   curator?: string;
+  status?: string;
 }
 
 export interface TeamMember {

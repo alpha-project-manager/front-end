@@ -21,6 +21,7 @@ const ProjectDetailPage = () => {
   const isCreateMode = searchParams.get('mode') === 'create';
   
   const project = mockProjects.find(p => p.id === projectId);
+  const [localProject, setLocalProject] = useState<Project | null>(project || null);
   const user = useAppSelector(selectCurrentUser);
   const dispatch = useAppDispatch();
   const [tab, setTab] = useState<'desc' | 'meetings'>('desc');
@@ -108,8 +109,14 @@ const ProjectDetailPage = () => {
         curator: project.curator || '',
         team: project.team || [],
       });
+      setLocalProject(project as Project);
     }
   }, [project, isCreateMode, showEdit]);
+
+  useEffect(() => {
+    // keep local copy in sync if project changes externally
+    if (project) setLocalProject(project as Project);
+  }, [project]);
 
   const handleSaveProject = async () => {
     if (!user) {
@@ -503,6 +510,27 @@ const ProjectDetailPage = () => {
                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getThemeColor(project.theme)}`}>
                  {project.theme}
                </span>
+               {/* Status selector */}
+               <select
+                 value={localProject?.status || 'active'}
+                 onChange={(e) => {
+                   const newStatus = e.target.value;
+                   // update mockProjects in-memory
+                   const idx = mockProjects.findIndex((p) => p.id === project.id);
+                   if (idx !== -1) {
+                     mockProjects[idx].status = newStatus;
+                   }
+                   setLocalProject(prev => prev ? { ...prev, status: newStatus } : prev);
+                   // refresh router to update lists
+                   router.refresh();
+                 }}
+                 className="ml-3 px-2 py-1 border border-gray-200 rounded-md text-sm"
+               >
+                 <option value="active">Active</option>
+                 <option value="archived">Archived</option>
+                 <option value="draft">Draft</option>
+                 <option value="completed">Completed</option>
+               </select>
              </div>
             
             <p className="text-gray-600 text-lg mb-6">

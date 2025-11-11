@@ -15,6 +15,8 @@ export const mockProjects: Project[] = [
       { id: '4', name: 'Анна Козлова', role: 'Project Manager' }
     ],
     curator: 'ООО "ТехноИнновации"'
+    ,
+    status: 'active'
   },
   {
     id: '2',
@@ -29,6 +31,8 @@ export const mockProjects: Project[] = [
       { id: '7', name: 'Игорь Лебедев', role: 'QA Engineer' }
     ],
     curator: 'ИП "Интернет Магазин"'
+    ,
+    status: 'active'
   },
   {
     id: '3',
@@ -43,6 +47,8 @@ export const mockProjects: Project[] = [
       { id: '10', name: 'Татьяна Федорова', role: 'Frontend Developer' }
     ],
     curator: 'Внутренний проект'
+    ,
+    status: 'archived'
   },
   {
     id: '4',
@@ -57,6 +63,8 @@ export const mockProjects: Project[] = [
       { id: '13', name: 'Роман Орлов', role: 'Sound Designer' }
     ],
     curator: 'Indie Studio'
+    ,
+    status: 'archived'
   },
   {
     id: '5',
@@ -71,6 +79,8 @@ export const mockProjects: Project[] = [
       { id: '16', name: 'Андрей Козлов', role: 'Data Engineer' }
     ],
     curator: 'ООО "Аналитика Плюс"'
+    ,
+    status: 'active'
   },
   {
     id: '6',
@@ -85,6 +95,8 @@ export const mockProjects: Project[] = [
       { id: '19', name: 'Кирилл Васильев', role: 'DevOps Engineer' }
     ],
     curator: 'ООО "Интеграции"'
+    ,
+    status: 'active'
   },
   {
     id: '7',
@@ -99,6 +111,8 @@ export const mockProjects: Project[] = [
       { id: '22', name: 'Ольга Соколова', role: 'Brand Manager' }
     ],
     curator: 'Внутренний проект'
+    ,
+    status: 'archived'
   },
   {
     id: '8',
@@ -113,6 +127,8 @@ export const mockProjects: Project[] = [
       { id: '25', name: 'Сергей Новиков', role: 'Analytics Specialist' }
     ],
     curator: 'ООО "Маркетинг Плюс"'
+    ,
+    status: 'active'
   },
   {
     id: '9',
@@ -127,6 +143,8 @@ export const mockProjects: Project[] = [
       { id: '28', name: 'Алексей Кузнецов', role: 'Security Analyst' }
     ],
     curator: 'ООО "КиберЗащита"'
+    ,
+    status: 'active'
   },
   {
     id: '10',
@@ -141,5 +159,7 @@ export const mockProjects: Project[] = [
       { id: '31', name: 'Роман Орлов', role: 'Cloud Engineer' }
     ],
     curator: 'Внутренний проект'
+    ,
+    status: 'archived'
   }
 ];

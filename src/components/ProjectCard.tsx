@@ -52,40 +52,14 @@ const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
 
       {/* Команда */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="flex -space-x-2">
-            {project.team.slice(0, 3).map((member, index) => (
-              <div
-                key={member.id}
-                className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white"
-                title={member.name}
-              >
-                <span className="text-white text-xs font-medium">
-                  {member.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            ))}
-            {project.team.length > 3 && (
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center border-2 border-white">
-                <span className="text-gray-600 text-xs font-medium">
-                  +{project.team.length - 3}
-                </span>
-              </div>
-            )}
-          </div>
-          <span className="ml-2 text-sm text-gray-500">
-            {project.team.length} участников
-          </span>
-        </div>
-
         {/* Даты */}
         <div className="text-right">
           <p className="text-xs text-gray-500">
-            Начало: {new Date(project.startDate).toLocaleDateString('ru-RU')}
+            Год: {new Date(project.startDate).toLocaleDateString('ru-RU')}
           </p>
           {project.endDate && (
             <p className="text-xs text-gray-500">
-              Завершение: {new Date(project.endDate).toLocaleDateString('ru-RU')}
+              Семестр: {new Date(project.endDate).toLocaleDateString('ru-RU')}
             </p>
           )}
         </div>

@@ -60,9 +60,6 @@ const CaseCard = ({ caseItem }: { caseItem: ProjectCase }) => {
         </div>
         <div className="flex flex-col gap-2 ml-4">
           <div className="bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-xs text-gray-700">
-            Мест осталось: {spotsLeft}
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-xs text-gray-700">
             Команд: {caseItem.acceptedTeams}
           </div>
         </div>

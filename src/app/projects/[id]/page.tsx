@@ -3,6 +3,7 @@
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
 import { mockProjects } from '@/data/mockProjects';
+import { mockMeetings } from '@/data/mockMeetings';
 import ProjectDetails from '@/components/ProjectDetails';
 import MeetingModal from '@/components/MeetingModal';
 import LoginDialog from '@/components/LoginDialog';
@@ -29,26 +30,9 @@ const ProjectDetailPage = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | undefined>();
-  const [meetings, setMeetings] = useState<Meeting[]>([
-    {
-      id: 'meeting-1',
-      projectId: projectId,
-      title: 'Планирование спринта',
-      description: 'Планирование спринтаdfffffffffff',
-      dateTime: new Date(Date.now() + 86400000).toISOString(),
-      resultMark: 5,
-      isFinished: false,
-    },
-    {
-      id: 'meeting-2',
-      projectId: projectId,
-      title: 'Обсуждение требований',
-      description: 'Обсуждение требований',
-      dateTime: new Date(Date.now() + 172800000).toISOString(),
-      resultMark: 4,
-      isFinished: false,
-    },
-  ]);
+  const [meetings, setMeetings] = useState<Meeting[]>(
+    mockMeetings.filter(m => m.projectId === projectId)
+  );
   const [query, setQuery] = useState('');
   const [projectData, setProjectData] = useState<Partial<Project>>({
     title: '',
@@ -64,6 +48,43 @@ const ProjectDetailPage = () => {
   const handleCreateMeeting = () => {
     setSelectedMeeting(undefined);
     setShowMeetingModal(true);
+  };
+
+  const handleCreateMeetingWithIncompleteTasks = () => {
+    // Найти последнюю встречу в отсортированном списке
+    if (meetings.length > 0) {
+      const sortedMeetings = [...meetings].sort(
+        (a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
+      );
+      const lastMeeting = sortedMeetings[0];
+      
+      // Получить незавершённые задачи
+      const incompleteTasks = (lastMeeting.tasks || [])
+        .filter((t) => !(t as any).isCompleted)
+        .map((t) => ({
+          ...(t as any),
+          id: `task-${Date.now()}-${Math.random()}`, // генерируем новый ID для новой встречи
+        }));
+      
+      // Создаем встречу-шаблон с незавершёнными задачами
+      const newMeetingTemplate: Meeting = {
+        id: `meeting-new-${Date.now()}`,
+        projectId,
+        title: '',
+        description: '',
+        dateTime: new Date().toISOString(),
+        resultMark: 5,
+        isFinished: false,
+        tasks: incompleteTasks,
+      };
+      
+      setSelectedMeeting(newMeetingTemplate);
+      setShowMeetingModal(true);
+    } else {
+      // Если встреч нет, просто открываем пустую модалку
+      setSelectedMeeting(undefined);
+      setShowMeetingModal(true);
+    }
   };
 
   const handleEditMeeting = (meeting: Meeting) => {
@@ -608,7 +629,7 @@ const ProjectDetailPage = () => {
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <Button
-                  onClick={handleCreateMeeting}
+                  onClick={() => meetings.length > 0 ? handleCreateMeetingWithIncompleteTasks() : handleCreateMeeting()}
                   variant="primary"
                   className="whitespace-nowrap"
                 >

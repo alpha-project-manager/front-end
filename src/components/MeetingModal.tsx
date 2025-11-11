@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Meeting } from '@/types/database';
+import type { Meeting, TodoTask } from '@/types/database';
 import Modal from './Modal';
 
 interface MeetingModalProps {
@@ -36,6 +36,7 @@ export const MeetingModal = ({
         dateTime: meeting.dateTime?.slice(0, 16) || new Date().toISOString().slice(0, 16),
         resultMark: meeting.resultMark || 5,
         isFinished: meeting.isFinished || false,
+        tasks: meeting.tasks ? meeting.tasks.map(t => ({ ...t })) : [],
       });
     } else {
       setFormData({
@@ -44,6 +45,7 @@ export const MeetingModal = ({
         dateTime: new Date().toISOString().slice(0, 16),
         resultMark: 5,
         isFinished: false,
+        tasks: [],
       });
     }
   }, [meeting, isOpen]);
@@ -69,6 +71,39 @@ export const MeetingModal = ({
         [name]: value,
       }));
     }
+  };
+
+  // --- Checklist handlers ---
+  const handleTaskTitleChange = (index: number, title: string) => {
+    setFormData((prev) => {
+      const tasks = (prev.tasks || []).map((t, i) =>
+        i === index ? { ...(t as TodoTask), title } : t
+      );
+      return { ...prev, tasks };
+    });
+  };
+
+  const toggleTaskCompleted = (index: number) => {
+    setFormData((prev) => {
+      const tasks = (prev.tasks || []).map((t, i) =>
+        i === index ? { ...(t as TodoTask), isCompleted: !(t as TodoTask).isCompleted } : t
+      );
+      return { ...prev, tasks };
+    });
+  };
+
+  const addTask = () => {
+    const newTask: TodoTask = {
+      id: `task-${Date.now()}`,
+      meetingId: meeting?.id || '',
+      isCompleted: false,
+      title: '',
+    };
+    setFormData((prev) => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
+  };
+
+  const removeTask = (index: number) => {
+    setFormData((prev) => ({ ...prev, tasks: (prev.tasks || []).filter((_, i) => i !== index) }));
   };
 
   const handleSave = () => {
@@ -162,19 +197,49 @@ export const MeetingModal = ({
 
         {/* Список задач */}
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-3">
-            Список задач
-          </label>
+          <label className="block text-sm font-medium text-gray-900 mb-3">Список задач</label>
           <div className="space-y-2">
-            {[1, 2, 3, 4].map((i) => (
-              <label key={i} className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Задача {i}</span>
-              </label>
-            ))}
+            {(formData.tasks || []).length === 0 ? (
+              <div className="text-sm text-gray-500">Нет задач. Добавьте первую задачу.</div>
+            ) : (
+              (formData.tasks || []).map((t, idx) => {
+                const task = t as TodoTask;
+                return (
+                  <div key={task.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!task.isCompleted}
+                      onChange={() => toggleTaskCompleted(idx)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={task.title}
+                      onChange={(e) => handleTaskTitleChange(idx, e.target.value)}
+                      placeholder="Название задачи"
+                      className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm"
+                    />
+                    <button
+                      onClick={() => removeTask(idx)}
+                      className="text-sm text-red-600 hover:underline"
+                      aria-label={`Удалить задачу ${idx + 1}`}
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                );
+              })
+            )}
+
+            <div>
+              <button
+                type="button"
+                onClick={addTask}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                + Добавить задачу
+              </button>
+            </div>
           </div>
         </div>
 

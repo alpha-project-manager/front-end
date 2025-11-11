@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { mockRequests } from '@/data/mockRequests';
 import { mockCases } from '@/data/mockCases';
+import { mockQuestions, type Question } from '@/data/mockQuestions';
 import type { PreRecordRequest } from '@/types/request';
 import type { ProjectCase } from '@/types/database';
 import { mockProjects } from '@/data/mockProjects';
@@ -126,6 +128,36 @@ const CaseCard = ({ caseItem }: { caseItem: ProjectCase }) => {
 
 export default function Requests() {
   const [activeTab, setActiveTab] = useState<TabType>('requests');
+  const router = useRouter();
+  const [questions, setQuestions] = useState<Question[]>(mockQuestions);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Question>>({});
+
+  // Обработчики для вопросов
+  const handleEditQuestion = (question: Question) => {
+    setEditingId(question.id);
+    setEditForm({ ...question });
+  };
+
+  const handleSaveQuestion = () => {
+    if (!editingId || !editForm.title || !editForm.text) return;
+    setQuestions(questions.map(q => q.id === editingId ? { ...q, ...editForm } : q));
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const handleDeleteQuestion = (id: string) => {
+    setQuestions(questions.filter(q => q.id !== id));
+  };
+
+  const handleAddQuestion = () => {
+    const newQuestion: Question = {
+      id: `q-${Date.now()}`,
+      title: 'Новый вопрос',
+      text: 'Введите текст вопроса',
+    };
+    setQuestions([...questions, newQuestion]);
+  };
 
   return (
     <div className="space-y-6">
@@ -182,7 +214,8 @@ export default function Requests() {
               {mockRequests.map((request, index) => (
                 <div
                   key={request.id}
-                  className="bg-gray-50 rounded-lg p-5 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer min-h-[150px] flex flex-col"
+                  onClick={() => router.push(`/requests/${request.id}`)}
+                  className="bg-gray-50 rounded-lg p-5 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer min-h-[150px] flex flex-col hover:bg-gray-100"
                 >
                   <div className="flex-1">
                     <h3 className="text-base font-semibold text-gray-900 mb-3">
@@ -216,8 +249,91 @@ export default function Requests() {
           )}
 
           {activeTab === 'questions' && (
-            <div className="text-center py-12">
-              <p className="text-gray-600">Раздел "Вопросы" в разработке</p>
+            <div className="space-y-4">
+              {/* (Вложенные табы удалены — используются верхние вкладки) */}
+
+              {/* Список вопросов */}
+              <div className="space-y-3">
+                {questions.map((question, idx) => (
+                  <div key={question.id} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    {editingId === question.id ? (
+                      // Режим редактирования
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Название
+                          </label>
+                          <input
+                            type="text"
+                            value={editForm.title || ''}
+                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Текст
+                          </label>
+                          <textarea
+                            value={editForm.text || ''}
+                            onChange={(e) => setEditForm({ ...editForm, text: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            onClick={handleSaveQuestion}
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            Сохранить
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Режим просмотра
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 text-sm mb-1">
+                            {idx + 1}. {question.title}
+                          </h3>
+                          <p className="text-sm text-gray-700">{question.text}</p>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => handleEditQuestion(question)}
+                            className="text-sm text-blue-600 hover:underline font-medium"
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            className="text-sm text-red-600 hover:underline font-medium"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Кнопка добавления */}
+              <div className="flex justify-center py-6">
+                <button
+                  onClick={handleAddQuestion}
+                  className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 text-2xl font-light transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
           )}
         </div>

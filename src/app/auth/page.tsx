@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { login } from "@/store/slices/authSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import type { Credentials } from "@/types/auth";
+import Button from "@/components/Button";
 
 const AuthPage = () => {
     const dispatch = useAppDispatch();
@@ -72,15 +73,15 @@ const AuthPage = () => {
                     </div>
                     
                     {/* Кнопка Войти */}
-                    <button
+                    <Button
                         type="submit"
                         disabled={status === "loading"}
-                        className="w-full bg-[#6B2F2F] hover:bg-[#5A2525] 
+                        className="w-full
                         text-white font-medium text-lg py-2 rounded-4xl transition-colors 
                         disabled:opacity-50 disabled:cursor-not-allowed mb-5 cursor-pointer"
                     >
                         {status === "loading" ? "Вход..." : "Войти"}
-                    </button>
+                    </Button>
                     
                     {/* Ссылка Забыли пароль */}
                     <button

@@ -13,7 +13,9 @@
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(to bottom, #E3F2FD, #FFF8E1, #F5F5DC);
+  background-attachment: fixed;
+  min-height: 100vh;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

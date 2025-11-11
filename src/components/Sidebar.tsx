@@ -1,52 +1,69 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
 interface SidebarProps {
   className?: string;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-const Sidebar = ({ className = '' }: SidebarProps) => {
+const Sidebar = ({ className = '', onMouseEnter, onMouseLeave }: SidebarProps) => {
   const pathname = usePathname();
+  const [mouseIn, SetMouseIn] = useState(false);
+
+  const handleMouseEnter = () => {
+    SetMouseIn(true);
+    onMouseEnter?.();
+  };
+
+  const handleMouseLeave = () => {
+    SetMouseIn(false);
+    onMouseLeave?.();
+  };
 
   const navigationItems = [
     {
       name: 'Главная',
       href: '/',
-      icon: '🏠',
+      icon: '/icons/home.png',
     },
     {
       name: 'Активные проекты',
       href: '/active',
-      icon: '📋',
+      icon: '/icons/active.png',
     },
     {
       name: 'Заявки',
       href: '/requests',
-      icon: '📝',
+      icon: '/icons/requests.png',
     },
     {
       name: 'Архив',
       href: '/archive',
-      icon: '📁',
+      icon: '/icons/archive.png',
     },
   ];
 
   const bottomNavigationItems = [
     {
-      name: 'настройки',
+      name: 'Настройки',
       href: '/settings',
-      icon: '⚙️',
+      icon: '/icons/settings.png',
     },
   ];
 
   return (
-    <aside className={`bg-gray-50 border-r border-gray-200 w-64 h-screen flex flex-col sidebar-transition fixed left-0 top-0 z-10 ${className}`}>
-      {/* Логотип/Заголовок */}
-      <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-800">Мое Приложение</h1>
-      </div>
+    <aside 
+      className={`bg-gray-50 border-r border-gray-200 h-screen flex flex-col sidebar-transition fixed left-0 top-0 z-10 ${
+        mouseIn ? 'w-[18.75rem]' : 'w-[7.188rem]'
+      } ${className}`}
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave}
+    >
 
       {/* Навигационное меню */}
       <nav className="flex-1 p-4">
@@ -58,14 +75,28 @@ const Sidebar = ({ className = '' }: SidebarProps) => {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center rounded-lg transition-colors ${
+                    mouseIn ? 'px-4' : 'px-2 justify-center'
+                  } py-3 ${
                     isActive
                       ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-lg mr-3">{item.icon}</span>
-                  <span className="font-medium">{item.name}</span>
+                  <span className={`flex-shrink-0 ${mouseIn ? 'mr-3' : 'mr-0'}`}>
+                    <Image
+                      src={item.icon}
+                      alt={item.name}
+                      width={50}
+                      height={50}
+                      className="w-8"
+                    />
+                  </span>
+                  <span className={`font-medium sidebar-transition overflow-hidden whitespace-nowrap ${
+                    mouseIn ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0'
+                  }`}>
+                    {item.name}
+                  </span>
                 </Link>
               </li>
             );
@@ -82,14 +113,28 @@ const Sidebar = ({ className = '' }: SidebarProps) => {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center rounded-lg transition-colors ${
+                    mouseIn ? 'px-4' : 'px-2 justify-center'
+                  } py-3 ${
                     isActive
                       ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <span className="text-lg mr-3">{item.icon}</span>
-                  <span className="font-medium">{item.name}</span>
+                  <span className={`flex-shrink-0 ${mouseIn ? 'mr-3' : 'mr-0'}`}>
+                    <Image
+                      src={item.icon}
+                      alt={item.name}
+                      width={20}
+                      height={20}
+                      className="w-5 h-5"
+                    />
+                  </span>
+                  <span className={`font-medium sidebar-transition overflow-hidden whitespace-nowrap ${
+                    mouseIn ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0'
+                  }`}>
+                    {item.name}
+                  </span>
                 </Link>
               </li>
             );

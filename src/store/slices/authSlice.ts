@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import type { AuthState, Credentials } from "@/types/auth";
-import { mockLogin, mockLogout } from "@/services/auth";
+import { login as authLogin, logout as authLogout } from "@/services/auth";
 
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -11,7 +11,7 @@ export const login = createAsyncThunk(
   "auth/login",
   async (credentials: Credentials, { rejectWithValue }) => {
     try {
-      const res = await mockLogin(credentials);
+      const res = await authLogin(credentials);
       return res;
     } catch (e: any) {
       return rejectWithValue(e.message ?? "Ошибка входа");
@@ -20,7 +20,7 @@ export const login = createAsyncThunk(
 );
 
 export const logout = createAsyncThunk("auth/logout", async () => {
-  await mockLogout();
+  await authLogout();
 });
 
 const authSlice = createSlice({
@@ -43,12 +43,19 @@ const authSlice = createSlice({
         state.status = "failed";
         state.error = String(action.payload ?? action.error.message ?? "Ошибка");
       })
+      .addCase(logout.pending, (state) => {
+        state.status = "loading";
+      })
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
         state.accessToken = undefined;
         state.user = undefined;
         state.status = "idle";
         state.error = undefined;
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = String(action.error.message ?? "Ошибка выхода");
       });
   },
 });

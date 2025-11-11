@@ -4,12 +4,14 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
 import { mockProjects } from '@/data/mockProjects';
 import ProjectDetails from '@/components/ProjectDetails';
-import TasksPanel from '@/components/TasksPanel';
+import MeetingModal from '@/components/MeetingModal';
 import LoginDialog from '@/components/LoginDialog';
+import Button from '@/components/Button';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/selectors';
 import { createProjectViaAPI } from '@/store/slices/projectsSlice';
 import { Project } from '@/types/project';
+import type { Meeting } from '@/types/database';
 
 const ProjectDetailPage = () => {
   const params = useParams();
@@ -21,9 +23,32 @@ const ProjectDetailPage = () => {
   const project = mockProjects.find(p => p.id === projectId);
   const user = useAppSelector(selectCurrentUser);
   const dispatch = useAppDispatch();
-  const [tab, setTab] = useState<'desc' | 'tasks'>('desc');
+  const [tab, setTab] = useState<'desc' | 'meetings'>('desc');
   const [showEdit, setShowEdit] = useState(isCreateMode);
   const [showLogin, setShowLogin] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | undefined>();
+  const [meetings, setMeetings] = useState<Meeting[]>([
+    {
+      id: 'meeting-1',
+      projectId: projectId,
+      title: 'Планирование спринта',
+      description: 'Планирование спринтаdfffffffffff',
+      dateTime: new Date(Date.now() + 86400000).toISOString(),
+      resultMark: 5,
+      isFinished: false,
+    },
+    {
+      id: 'meeting-2',
+      projectId: projectId,
+      title: 'Обсуждение требований',
+      description: 'Обсуждение требований',
+      dateTime: new Date(Date.now() + 172800000).toISOString(),
+      resultMark: 4,
+      isFinished: false,
+    },
+  ]);
+  const [query, setQuery] = useState('');
   const [projectData, setProjectData] = useState<Partial<Project>>({
     title: '',
     description: '',
@@ -34,7 +59,42 @@ const ProjectDetailPage = () => {
     team: [],
   });
   const [isSaving, setIsSaving] = useState(false);
-  const tasks = useMemo(() => [], []);
+
+  const handleCreateMeeting = () => {
+    setSelectedMeeting(undefined);
+    setShowMeetingModal(true);
+  };
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setShowMeetingModal(true);
+  };
+
+  const handleSaveMeeting = (meetingData: Partial<Meeting>) => {
+    if (selectedMeeting) {
+      // Редактирование существующей встречи
+      setMeetings(meetings.map(m => 
+        m.id === selectedMeeting.id 
+          ? { ...m, ...meetingData }
+          : m
+      ));
+    } else {
+      // Создание новой встречи
+      const newMeeting: Meeting = {
+        id: `meeting-${Date.now()}`,
+        projectId,
+        ...meetingData,
+      } as Meeting;
+      setMeetings([...meetings, newMeeting]);
+    }
+  };
+
+  const filteredMeetings = useMemo(() => 
+    meetings.filter(m => 
+      m.description?.toLowerCase().includes(query.toLowerCase()) ?? false
+    ),
+    [meetings, query]
+  );
 
   // Инициализируем данные проекта при входе в режим редактирования
   useEffect(() => {
@@ -220,19 +280,19 @@ const ProjectDetailPage = () => {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <button
+              <Button
                 onClick={() => router.push('/active')}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                variant="secondary"
               >
                 Отмена
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSaveProject}
                 disabled={isSaving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="primary"
               >
                 {isSaving ? 'Сохранение...' : 'Создать проект'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -347,19 +407,19 @@ const ProjectDetailPage = () => {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <button
+              <Button
                 onClick={() => setShowEdit(false)}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                variant="secondary"
               >
                 Отмена
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleUpdateProject}
                 disabled={isSaving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="primary"
               >
                 {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -452,41 +512,138 @@ const ProjectDetailPage = () => {
 
           {/* Действия */}
           <div className="flex flex-col gap-3">
-            <button className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors" onClick={() => {
-              if (user) {
-                setShowEdit(true);
-              } else {
-                setShowLogin(true);
-              }
-            }}>
-              Редактировать
-            </button>
-            <button className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <Button
+              variant="secondary"
+              fullWidth
+            >
               Поделиться
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Табы по вайрфрейму */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 pt-4 border-b">
-          <div className="inline-flex items-center gap-1 bg-gray-100 rounded-md p-1">
-            <button className={`px-3 py-1 rounded ${tab==='desc' ? 'bg-white border' : ''}`} onClick={() => setTab('desc')}>Описание</button>
-            <button className={`px-3 py-1 rounded ${tab==='tasks' ? 'bg-white border' : ''}`} onClick={() => setTab('tasks')}>Задачи</button>
+        <div className="px-6 pt-4 border-b border-gray-200">
+          <div className="flex gap-6">
+            <button
+              onClick={() => setTab('desc')}
+              className={`pb-4 px-2 font-medium transition-colors relative ${
+                tab === 'desc'
+                  ? 'text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Описание
+              {tab === 'desc' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('meetings')}
+              className={`pb-4 px-2 font-medium transition-colors relative ${
+                tab === 'meetings'
+                  ? 'text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Встречи
+              {tab === 'meetings' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></span>
+              )}
+            </button>
           </div>
         </div>
         <div className="p-6">
           {tab === 'desc' ? (
-            <ProjectDetails project={project} />
+            <ProjectDetails 
+              project={project} 
+              isEditing={showEdit}
+              onEdit={() => {
+                if (user) {
+                  setShowEdit(!showEdit);
+                } else {
+                  setShowLogin(true);
+                }
+              }}
+              onSave={handleUpdateProject}
+            />
           ) : (
-            <TasksPanel tasks={tasks} />
+            <div className="space-y-6">
+              {/* Заголовок и поиск */}
+              <div className="flex items-center justify-between gap-4">
+                <input
+                  type="text"
+                  placeholder="Поиск встреч..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <Button
+                  onClick={handleCreateMeeting}
+                  variant="primary"
+                  className="whitespace-nowrap"
+                >
+                  + Создать встречу
+                </Button>
+              </div>
+
+              {/* Список встреч */}
+              <div className="space-y-4">
+                {filteredMeetings.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-gray-500">
+                      <div className="text-4xl mb-2">📅</div>
+                      <p className="text-sm">Встреч не найдено</p>
+                    </div>
+                  </div>
+                ) : (
+                  filteredMeetings.map((meeting) => (
+                    <div
+                      key={meeting.id}
+                      onClick={() => handleEditMeeting(meeting)}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {meeting.title || 'Встреча'}
+                        </h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          meeting.isFinished
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {meeting.isFinished ? '✓ Завершена' : 'Запланирована'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-6 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <span>📅</span>
+                          <span>{new Date(meeting.dateTime).toLocaleString('ru-RU')}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>⭐</span>
+                          <span>{meeting.resultMark || 'Нет оценки'}/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Модалки */}
       <LoginDialog open={showLogin} onClose={() => setShowLogin(false)} />
+      <MeetingModal
+        isOpen={showMeetingModal}
+        onClose={() => setShowMeetingModal(false)}
+        onSave={handleSaveMeeting}
+        meeting={selectedMeeting}
+      />
     </div>
   );
 };

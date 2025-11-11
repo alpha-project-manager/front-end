@@ -25,9 +25,7 @@ const AuthPage = () => {
     };
 
     return (
-        <div className="relative flex items-center justify-center md:justify-end h-screen overflow-hidden px-4">
-            {/* Градиентный фон */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#E8D4D4] via-[#F0E4D4] to-[#FAF7F0]"></div>
+        <div className="relative flex items-center justify-center h-screen overflow-hidden px-4">
             
             {/* Панель с формой */}
             <div className="relative z-10 h-11/12 w-full min-w-1/3 max-w-md bg-transparent rounded-[40px] py-[7.5rem] px-[7.813rem] md:mr-12 shadow-2xl border border-black/5">

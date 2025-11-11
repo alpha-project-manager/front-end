@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loadProjectsFromTimpr } from '@/store/slices/projectsSlice';
 import ProjectCard from '@/components/ProjectCard';
 import { mockProjects } from '@/data/mockProjects';
+import Button from '@/components/Button';
 
 const ActivePage = () => {
   const router = useRouter();
@@ -90,14 +91,17 @@ const ActivePage = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Поиск */}
-          <div className="flex-1">
+          <div className="flex-1 flex gap-2">
             <input
               type="text"
               placeholder="Поиск проектов..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <Button variant="primary">
+              Найти
+            </Button>
           </div>
 
           {/* Фильтр по темам */}
@@ -118,19 +122,21 @@ const ActivePage = () => {
 
           {/* Кнопки действий */}
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={handleCreateProject}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+              variant="secondary"
+              className="whitespace-nowrap"
             >
               Создать
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleLoadFromTimpr}
               disabled={isLoadingFromTimpr}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              variant="secondary"
+              className="whitespace-nowrap"
             >
-              {isLoadingFromTimpr ? 'Загрузка...' : 'Выгрузить список проектов из тимпр'}
-            </button>
+              {isLoadingFromTimpr ? 'Загрузка...' : 'Выгрузить'}
+            </Button>
           </div>
         </div>
       </div>

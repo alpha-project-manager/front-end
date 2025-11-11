@@ -1,4 +1,7 @@
 import { Credentials, UserProfile } from "@/types/auth";
+import { apiClient } from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/config/api";
+import { withApiFallback, shouldUseMockData } from "@/lib/api-utils";
 
 const mockUsers: Array<UserProfile & { username: string; password: string }> = [
   {
@@ -42,6 +45,7 @@ const mockUsers: Array<UserProfile & { username: string; password: string }> = [
   },
 ];
 
+// ========== Mock функции ==========
 export async function mockLogin(credentials: Credentials): Promise<{ token: string; user: UserProfile }>{
   await delay(300);
   
@@ -76,6 +80,59 @@ export async function mockLogin(credentials: Credentials): Promise<{ token: stri
 
 export async function mockLogout(): Promise<void> {
   await delay(100);
+}
+
+// ========== API функции ==========
+async function apiLogin(credentials: Credentials): Promise<{ token: string; user: UserProfile }> {
+  const response = await apiClient.post<{ token: string; user: UserProfile }>(
+    API_ENDPOINTS.auth.login,
+    credentials
+  );
+  return response;
+}
+
+async function apiLogout(): Promise<void> {
+  await apiClient.post(API_ENDPOINTS.auth.logout);
+}
+
+async function apiGetMe(): Promise<UserProfile> {
+  return await apiClient.get<UserProfile>(API_ENDPOINTS.auth.me);
+}
+
+// ========== Публичные функции (с автоматическим выбором моков/API) ==========
+/**
+ * Вход в систему
+ * Автоматически использует API или моки в зависимости от конфигурации
+ */
+export async function login(credentials: Credentials): Promise<{ token: string; user: UserProfile }> {
+  return withApiFallback(
+    () => apiLogin(credentials),
+    () => mockLogin(credentials)
+  );
+}
+
+/**
+ * Выход из системы
+ * Автоматически использует API или моки в зависимости от конфигурации
+ */
+export async function logout(): Promise<void> {
+  return withApiFallback(
+    () => apiLogout(),
+    () => mockLogout()
+  );
+}
+
+/**
+ * Получить текущего пользователя
+ */
+export async function getCurrentUser(): Promise<UserProfile> {
+  if (shouldUseMockData()) {
+    // Для моков возвращаем первого пользователя как пример
+    const mockUser = mockUsers[0];
+    return stripSecrets(mockUser);
+  }
+  
+  return apiGetMe();
 }
 
 function stripSecrets(user: (UserProfile & { username: string; password: string })): UserProfile {

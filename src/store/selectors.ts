@@ -23,4 +23,22 @@ export const selectReports = (s: RootState) => s.reports.items;
 
 export const selectArchive = (s: RootState) => s.archive.items;
 
+// Votes selectors
+export const selectUserVotes = (s: RootState) => s.votes.userVotes;
+export const selectCaseVotes = (s: RootState) => s.votes.votes;
+
+export const selectUserVoteForCase = (caseId: string) => (s: RootState) =>
+  s.votes.userVotes[caseId] || null;
+
+export const selectCaseVotesForCase = (caseId: string) => (s: RootState) =>
+  s.votes.votes[caseId] || [];
+
+export const selectCaseVoteStats = (caseId: string) => (s: RootState) => {
+  const votes = s.votes.votes[caseId] || [];
+  return {
+    likes: votes.filter((v) => v.reactionType === 'like').length,
+    dislikes: votes.filter((v) => v.reactionType === 'dislike').length,
+    total: votes.length,
+  };
+};
 

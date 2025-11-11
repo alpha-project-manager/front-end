@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppDispatch } from '@/store/hooks';
+import { logout } from '@/store/slices/authSlice';
+import Button from '@/components/Button';
 
 export default function Settings() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const handleSave = () => {
     // Логика сохранения данных Яндекс календаря
@@ -16,9 +22,13 @@ export default function Settings() {
     console.log('Смена пароля');
   };
 
-  const handleLogout = () => {
-    // Логика выхода
-    console.log('Выход из системы');
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout()).unwrap();
+      router.push('/auth');
+    } catch (error) {
+      console.error('Ошибка при выходе:', error);
+    }
   };
 
   return (
@@ -68,12 +78,12 @@ export default function Settings() {
             </div>
 
             <div className="flex justify-center pt-4">
-              <button
+              <Button
                 onClick={handleSave}
-                className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                variant="primary"
               >
                 Сохранить
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -81,19 +91,23 @@ export default function Settings() {
 
       {/* Кнопки действий */}
       <div className="max-w-md space-y-3">
-        <button
+        <Button
           onClick={handleChangePassword}
-          className="w-full px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-left"
+          variant="secondary"
+          fullWidth
+          className="text-left"
         >
           Сменить пароль
-        </button>
+        </Button>
         
-        <button
+        <Button
           onClick={handleLogout}
-          className="w-full px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-left"
+          variant="text-link"
+          fullWidth
+          className="text-center"
         >
-          Выход
-        </button>
+          Выйти
+        </Button>
       </div>
     </div>
   );

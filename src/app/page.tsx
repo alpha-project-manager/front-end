@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import MilestonesWidget from '@/components/MilestonesWidget';
 
 export default function Home() {
   const upcomingMeetings = [
@@ -29,7 +30,7 @@ export default function Home() {
         <p className="text-gray-600 text-lg">Это главная страница вашего приложения. Здесь вы можете видеть общую информацию и быстрый доступ к основным функциям.</p>
       </div>
 
-      {/* Navigation panels + upcoming meetings */}
+      {/* Navigation panels + upcoming meetings + milestones */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick navigation panels */}
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -107,6 +108,11 @@ export default function Home() {
             ))}
           </div>
         </aside>
+      </div>
+
+      {/* Контрольные точки */}
+      <div className="lg:col-span-1">
+        <MilestonesWidget />
       </div>
     </div>
   );

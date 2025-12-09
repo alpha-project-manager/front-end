@@ -85,6 +85,18 @@ export default function RequestDetailPage() {
     }
   };
 
+  const handleDeleteRequest = () => {
+    if (confirm('Вы уверены, что хотите удалить эту заявку? Это действие нельзя отменить.')) {
+      // Удаляем из mockRequests
+      const index = mockRequests.findIndex(r => r.id === requestId);
+      if (index !== -1) {
+        mockRequests.splice(index, 1);
+      }
+      // Перенаправляем обратно к списку заявок
+      router.push('/requests');
+    }
+  };
+
   if (!request) {
     return (
       <div className="text-center py-12">

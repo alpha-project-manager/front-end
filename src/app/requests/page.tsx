@@ -130,6 +130,14 @@ export default function Requests() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Question>>({});
 
+  // Состояние для сортировки кейсов
+  const [sortBy, setSortBy] = useState<'title' | 'tutor' | 'acceptedTeams'>('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Состояние для сортировки кейсов
+  const [sortBy, setSortBy] = useState<'title' | 'tutor' | 'acceptedTeams'>('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   // Обработчики для вопросов
   const handleEditQuestion = (question: Question) => {
     setEditingId(question.id);
@@ -155,6 +163,34 @@ export default function Requests() {
     };
     setQuestions([...questions, newQuestion]);
   };
+
+  // Фильтрация и сортировка кейсов
+  const sortedCases = mockCases.slice().sort((a, b) => {
+    let aValue: any, bValue: any;
+
+    switch (sortBy) {
+      case 'title':
+        aValue = a.title;
+        bValue = b.title;
+        break;
+      case 'tutor':
+        aValue = a.tutor || '';
+        bValue = b.tutor || '';
+        break;
+      case 'acceptedTeams':
+        aValue = a.acceptedTeams;
+        bValue = b.acceptedTeams;
+        break;
+      default:
+        return 0;
+    }
+
+    if (sortOrder === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
 
   return (
     <div className="space-y-6">

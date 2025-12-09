@@ -12,6 +12,7 @@ import teamProject from "./slices/teamProjectSlice";
 import reports from "./slices/reportsSlice";
 import archive from "./slices/archiveSlice";
 import votes from "./slices/votesSlice";
+import milestones from "./slices/milestonesSlice";
 
 const authPersistConfig = {
   key: "auth",
@@ -34,6 +35,7 @@ export const store = configureStore({
     reports,
     archive,
     votes,
+    milestones,
   },
   devTools: process.env.NODE_ENV !== "production",
   middleware: (getDefaultMiddleware) =>

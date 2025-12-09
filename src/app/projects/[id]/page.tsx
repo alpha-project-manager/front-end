@@ -4,8 +4,11 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
 import { mockProjects } from '@/data/mockProjects';
 import { mockMeetings } from '@/data/mockMeetings';
+import { mockMilestones } from '@/data/mockMilestones';
 import ProjectDetails from '@/components/ProjectDetails';
 import MeetingModal from '@/components/MeetingModal';
+import MilestoneModal from '@/components/MilestoneModal';
+import MilestoneCard from '@/components/MilestoneCard';
 import LoginDialog from '@/components/LoginDialog';
 import Button from '@/components/Button';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -13,6 +16,7 @@ import { selectCurrentUser } from '@/store/selectors';
 import { createProjectViaAPI } from '@/store/slices/projectsSlice';
 import { Project } from '@/types/project';
 import type { Meeting } from '@/types/database';
+import { Milestone } from '@/types/milestone';
 
 const ProjectDetailPage = () => {
   const params = useParams();
@@ -25,15 +29,24 @@ const ProjectDetailPage = () => {
   const [localProject, setLocalProject] = useState<Project | null>(project || null);
   const user = useAppSelector(selectCurrentUser);
   const dispatch = useAppDispatch();
-  const [tab, setTab] = useState<'desc' | 'meetings'>('desc');
+  const [tab, setTab] = useState<'desc' | 'meetings' | 'milestones'>('desc');
   const [showEdit, setShowEdit] = useState(isCreateMode);
+
+  // Модалки
   const [showLogin, setShowLogin] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+
+
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | undefined>();
+  const [selectedMilestone, setSelectedMilestone] = useState<Milestone | undefined>();
+
   const [meetings, setMeetings] = useState<Meeting[]>(
     mockMeetings.filter(m => m.projectId === projectId)
   );
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'title' | 'status'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [projectData, setProjectData] = useState<Partial<Project>>({
     title: '',
     description: '',
@@ -45,6 +58,7 @@ const ProjectDetailPage = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  //Хэндлеры для встреч
   const handleCreateMeeting = () => {
     setSelectedMeeting(undefined);
     setShowMeetingModal(true);
@@ -111,12 +125,65 @@ const ProjectDetailPage = () => {
     }
   };
 
-  const filteredMeetings = useMemo(() => 
-    meetings.filter(m => 
+  const filteredMeetings = useMemo(() => {
+    let filtered = meetings.filter(m => 
       m.description?.toLowerCase().includes(query.toLowerCase()) ?? false
-    ),
-    [meetings, query]
-  );
+    );
+    
+    // Сортировка
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.dateTime).getTime();
+          bValue = new Date(b.dateTime).getTime();
+          break;
+        case 'title':
+          aValue = a.title || '';
+          bValue = b.title || '';
+          break;
+        case 'status':
+          aValue = a.isFinished ? 1 : 0;
+          bValue = b.isFinished ? 1 : 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    
+    return filtered;
+  }, [meetings, query, sortBy, sortOrder]);
+
+  // const filteredMeetingsOld = useMemo(() => 
+  //   meetings.filter(m => 
+  //     m.description?.toLowerCase().includes(query.toLowerCase()) ?? false
+  //   ),
+  //   [meetings, query]
+  // );
+
+  // Хэндлеры для контрольных точек
+  const handleCreateMilestone = () => {
+    setSelectedMilestone(undefined);
+    setShowMilestoneModal(true);
+  }
+
+  const handleEditMilestone = (milestone: Milestone) => {
+    setSelectedMilestone(milestone);
+    setShowMilestoneModal(true);
+  };
+
+  const handleSaveMilestone = (milestoneData: Partial<Milestone>) => {
+    if (selectedMilestone) {
+      // Редактирование существующей контрольной точки
+    }
+  }
 
   // Инициализируем данные проекта при входе в режим редактирования
   useEffect(() => {
@@ -580,7 +647,7 @@ const ProjectDetailPage = () => {
               className={`pb-4 px-2 font-medium transition-colors relative ${
                 tab === 'desc'
                   ? 'text-gray-900'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900 cursor-pointer'
               }`}
             >
               Описание
@@ -593,11 +660,24 @@ const ProjectDetailPage = () => {
               className={`pb-4 px-2 font-medium transition-colors relative ${
                 tab === 'meetings'
                   ? 'text-gray-900'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900 cursor-pointer'
               }`}
             >
               Встречи
               {tab === 'meetings' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('milestones')}
+              className={`pb-4 px-2 font-medium transition-colors relative ${
+                tab === 'milestones'
+                  ? 'text-gray-900'
+                  : 'text-gray-600 hover:text-gray-900 cursor-pointer'
+              }`}
+            >
+              Контрольные точки
+              {tab === 'milestones' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"></span>
               )}
             </button>
@@ -617,7 +697,7 @@ const ProjectDetailPage = () => {
               }}
               onSave={handleUpdateProject}
             />
-          ) : (
+          ) : tab === 'meetings' ? (
             <div className="space-y-6">
               {/* Заголовок и поиск */}
               <div className="flex items-center justify-between gap-4">
@@ -628,6 +708,27 @@ const ProjectDetailPage = () => {
                   onChange={(e) => setQuery(e.target.value)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+              
+              {/* Элементы сортировки */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">Сортировать по:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'date' | 'title' | 'status')}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="date">Дате</option>
+                  <option value="title">Названию</option>
+                  <option value="status">Статусу</option>
+                </select>
+                <Button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  variant='secondary'
+                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                >
+                  {sortOrder === 'asc' ? '↑ По возрастанию' : '↓ По убыванию'}
+                </Button>
                 <Button
                   onClick={() => meetings.length > 0 ? handleCreateMeetingWithIncompleteTasks() : handleCreateMeeting()}
                   variant="primary"
@@ -681,6 +782,18 @@ const ProjectDetailPage = () => {
                 )}
               </div>
             </div>
+          ) : (
+            <div className="space-y-6">
+              {mockMilestones
+                .filter(m => m.projectId === projectId)
+                .map(milestone => (
+                  <button className="w-full text-left" key={milestone.id}
+                  onClick={() => handleEditMilestone(milestone)}>
+                  <MilestoneCard key={milestone.id} milestone={milestone} />
+                  </button>
+                ))
+              }
+            </div>
           )}
         </div>
       </div>
@@ -692,6 +805,14 @@ const ProjectDetailPage = () => {
         onClose={() => setShowMeetingModal(false)}
         onSave={handleSaveMeeting}
         meeting={selectedMeeting}
+        projectId={projectId}
+      />
+
+      <MilestoneModal
+        isOpen={showMilestoneModal}
+        onClose={() => setShowMilestoneModal(false)}
+        onSave={() => {}}
+        milestone={selectedMilestone}
       />
     </div>
   );

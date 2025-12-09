@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import type { Meeting, TodoTask } from '@/types/database';
 import Modal from './Modal';
+import { mockProjects } from '@/data/mockProjects';
 
 interface MeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (meeting: Partial<Meeting>) => void;
   meeting?: Meeting;
+  projectId?: string;
 }
 
 export const MeetingModal = ({

@@ -38,7 +38,7 @@ export const MeetingModal = ({
       setFormData({
         description: meeting.description || '',
         dateTime: meeting.dateTime || new Date().toISOString(),
-        resultMark: meeting.resultMark || 5,
+        resultMark: meeting.resultMark,
         isFinished: meeting.isFinished || false,
         todoTasks: meeting.todoTasks ? meeting.todoTasks.map(t => ({ ...t })) : [],
       });
@@ -153,22 +153,22 @@ export const MeetingModal = ({
         </div>
 
         {/* Оценка */}
-        {meeting?.resultMark && 
+        {meeting?.resultMark !== 0 && (
           <div>
-          <label className="block text-sm font-medium text-gray-900 mb-1">
-            Оценка
-          </label>
-          <input
-            type="number"
-            name="resultMark"
-            min="0"
-            max="10"
-            value={formData.resultMark || 0}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        }
+            <label className="block text-sm font-medium text-gray-900 mb-1">
+              Оценка
+            </label>
+            <input
+              type="number"
+              name="resultMark"
+              min="0"
+              max="10"
+              value={formData.resultMark || 0}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+         </div>
+        )}
         
 
         {/* Статус */}

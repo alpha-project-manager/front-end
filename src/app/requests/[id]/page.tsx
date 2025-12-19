@@ -171,19 +171,19 @@ export default function RequestDetailPage() {
               Кейс: {application.caseTitle}
             </p>
             <p className="text-sm text-gray-600">
-              Telegram: {application.telegramUsername}
+              Telegram: @{application.telegramUsername}
             </p>
             <p className="text-xs text-gray-500">
               Обновлено: {new Date(application.updatedAt).toLocaleDateString('ru-RU')}
             </p>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <span
               className={`px-3 py-1.5 rounded text-xs font-medium border ${getStatusColor(status)}`}
             >
               {getStatusLabel(status)}
             </span>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -201,13 +201,13 @@ export default function RequestDetailPage() {
               messages.map((msg: any) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.fromStudents ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.fromStudents ? 'justify-start' : 'justify-end'}`}
                 >
                   <div
                     className={`px-4 py-2 rounded-lg break-words max-w-xs lg:max-w-md ${
                       msg.fromStudents
-                        ? 'bg-blue-600 text-white rounded-br-none'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                        ? 'bg-gray-200 text-gray-900 rounded-bl-none '
+                        : 'bg-blue-600 text-white rounded-br-none'
                     }`}
                   >
                     <p className="text-sm break-words">{msg.content}</p>
@@ -307,16 +307,15 @@ export default function RequestDetailPage() {
                 {new Date(application.updatedAt).toLocaleDateString('ru-RU')}
               </p>
             </div>
-
-            {/* Непрочитанные сообщения */}
-            {application.unreadMessagesCount > 0 && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-1">Непрочитанных</p>
-                <p className="text-sm text-blue-600 font-medium">
-                  {application.unreadMessagesCount}
-                </p>
-              </div>
-            )}
+            {/* Удаление заявки */}
+            <div>
+              <button
+                onClick={handleDeleteRequest}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 font-medium text-sm transition-colors"
+              >
+                Удалить заявку
+              </button>
+            </div>
           </div>
         </aside>
       </div>

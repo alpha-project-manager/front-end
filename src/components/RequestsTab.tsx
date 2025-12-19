@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ApplicationBriefResponse } from '@/types/application';
 import type { PreRecordRequest } from '@/types/request';
+import { ApplicationStatus } from '@/types/enums';
 
 const getStatusLabel = (status: PreRecordRequest['status']): string => {
   const labels = {
@@ -21,6 +22,28 @@ const getStatusColor = (status: PreRecordRequest['status']): string => {
     approved: 'text-green-600 bg-green-50',
     rejected: 'text-red-600 bg-red-50',
     scheduled: 'text-blue-600 bg-blue-50',
+  };
+  return colors[status];
+};
+
+const getApplicationStatusLabel = (status: ApplicationStatus): string => {
+  const labels = {
+    [ApplicationStatus.InProgress]: 'В работе',
+    [ApplicationStatus.New]: 'Новая',
+    [ApplicationStatus.MeetPlanned]: 'Встреча запланирована',
+    [ApplicationStatus.Accepted]: 'Принята',
+    [ApplicationStatus.Rejected]: 'Отклонена',
+  };
+  return labels[status];
+};
+
+const getApplicationStatusColor = (status: ApplicationStatus): string => {
+  const colors = {
+    [ApplicationStatus.InProgress]: 'text-blue-600 bg-blue-200',
+    [ApplicationStatus.New]: 'text-gray-600 bg-gray-200',
+    [ApplicationStatus.MeetPlanned]: 'text-purple-600 bg-purple-200',
+    [ApplicationStatus.Accepted]: 'text-green-600 bg-green-200',
+    [ApplicationStatus.Rejected]: 'text-red-600 bg-red-200',
   };
   return colors[status];
 };
@@ -45,11 +68,13 @@ export default function RequestsTab({ applications, loading }: RequestsTabProps)
   const router = useRouter();
 
   // Состояние для сортировки заявок
-  const [applicationsSortBy, setApplicationsSortBy] = useState<'caseTitle' | 'teamTitle' | 'updatedAt'>('updatedAt');
+  const [applicationsSortBy, setApplicationsSortBy] = useState<'caseTitle' | 'teamTitle' | 'updatedAt' | 'status'>('updatedAt');
   const [applicationsSortOrder, setApplicationsSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | null>(null);
 
   // Фильтрация и сортировка заявок
-  const sortedApplications = applications.slice().sort((a, b) => {
+  const filteredApplications = statusFilter !== null ? applications.filter(a => a.status === statusFilter) : applications;
+  const sortedApplications = filteredApplications.slice().sort((a, b) => {
     let aValue: any, bValue: any;
 
     switch (applicationsSortBy) {
@@ -64,6 +89,10 @@ export default function RequestsTab({ applications, loading }: RequestsTabProps)
       case 'updatedAt':
         aValue = new Date(a.updatedAt);
         bValue = new Date(b.updatedAt);
+        break;
+      case 'status':
+        aValue = a.status;
+        bValue = b.status;
         break;
       default:
         return 0;
@@ -96,6 +125,7 @@ export default function RequestsTab({ applications, loading }: RequestsTabProps)
           <option value="updatedAt">По дате</option>
           <option value="caseTitle">По кейсу</option>
           <option value="teamTitle">По команде</option>
+          <option value="status">По статусу</option>
         </select>
         <select
           value={applicationsSortOrder}
@@ -105,6 +135,20 @@ export default function RequestsTab({ applications, loading }: RequestsTabProps)
           <option value="desc">По убыванию</option>
           <option value="asc">По возрастанию</option>
         </select>
+        {applicationsSortBy === 'status' && (
+          <select
+            value={statusFilter ?? 'all'}
+            onChange={(e) => setStatusFilter(e.target.value === 'all' ? null : Number(e.target.value) as ApplicationStatus)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="all">Все статусы</option>
+            <option value={ApplicationStatus.InProgress}>В работе</option>
+            <option value={ApplicationStatus.New}>Новая</option>
+            <option value={ApplicationStatus.MeetPlanned}>Встреча запланирована</option>
+            <option value={ApplicationStatus.Accepted}>Принята</option>
+            <option value={ApplicationStatus.Rejected}>Отклонена</option>
+          </select>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -130,19 +174,12 @@ export default function RequestsTab({ applications, loading }: RequestsTabProps)
                 </p>
               )}
             </div>
-            <div className="flex justify-end items-end mt-auto pt-2">
+            <div className="flex justify-end items-center mt-auto pt-2">
               <span className="text-xs text-gray-600 font-medium mr-2">Статус:</span>
               <span
-                className={`px-2 py-1 rounded text-xs font-medium`}
-                style={{
-                  backgroundColor: application.status === 1 ? '#fef3c7' : application.status === 3 ? '#dcfce7' : '#f3f4f6',
-                  color: application.status === 1 ? '#d97706' : application.status === 3 ? '#16a34a' : '#374151'
-                }}
+                className={`px-2 py-1 rounded text-xs font-medium ${getApplicationStatusColor(application.status)}`}
               >
-                {application.status === 0 ? 'В работе' :
-                 application.status === 1 ? 'Новая' :
-                 application.status === 2 ? 'Встреча запланирована' :
-                 application.status === 3 ? 'Принята' : 'Отклонена'}
+                {getApplicationStatusLabel(application.status)}
               </span>
             </div>
           </div>

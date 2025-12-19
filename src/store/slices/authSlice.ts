@@ -21,6 +21,10 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk("auth/logout", async () => {
   await authLogout();
+  // Очищаем localStorage при выходе
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('persist:auth');
+  }
 });
 
 const authSlice = createSlice({

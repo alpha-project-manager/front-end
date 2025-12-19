@@ -15,9 +15,9 @@ const mockCases: ProjectCaseBriefResponse[] = [
     isActive: true,
     updatedAt: "2024-01-15T10:00:00Z",
     votes: {
-      0: [], // Neutral
-      1: [], // Positive
-      2: []  // Negative
+      Neutral: [],
+      Positive: [],
+      Negative: []
     }
   },
   {
@@ -30,9 +30,9 @@ const mockCases: ProjectCaseBriefResponse[] = [
     isActive: true,
     updatedAt: "2024-01-14T15:30:00Z",
     votes: {
-      0: [],
-      1: [],
-      2: []
+      Neutral: [],
+      Positive: [],
+      Negative: []
     }
   }
 ];
@@ -108,11 +108,26 @@ export async function mockVoteCase(caseId: string, data: CaseVoteRequest): Promi
 // ========== API функции ==========
 async function apiFetchCases(): Promise<ProjectCaseBriefResponse[]> {
   const response = await apiClient.get<ProjectCaseListResponse>(API_ENDPOINTS.cases.list);
-  return response.cases;
+  return response.cases.map(caseItem => ({
+    ...caseItem,
+    votes: {
+      Neutral: caseItem.votes?.Neutral || [],
+      Positive: caseItem.votes?.Positive || [],
+      Negative: caseItem.votes?.Negative || [],
+    }
+  }));
 }
 
 async function apiFetchCaseBrief(id: string): Promise<ProjectCaseBriefResponse> {
-  return await apiClient.get<ProjectCaseBriefResponse>(API_ENDPOINTS.cases.brief(id));
+  const caseItem = await apiClient.get<ProjectCaseBriefResponse>(API_ENDPOINTS.cases.brief(id));
+  return {
+    ...caseItem,
+    votes: {
+      Neutral: caseItem.votes?.Neutral || [],
+      Positive: caseItem.votes?.Positive || [],
+      Negative: caseItem.votes?.Negative || [],
+    }
+  };
 }
 
 async function apiFetchCase(id: string): Promise<ProjectCaseFullResponse> {
@@ -139,62 +154,27 @@ async function apiDeleteCase(id: string): Promise<void> {
   await apiClient.delete<void>(API_ENDPOINTS.cases.delete(id));
 }
 
+// ========== Хелпер для публичных функций ==========
+function createApiFunction<T extends any[], R>(
+  apiFn: (...args: T) => Promise<R>,
+  mockFn: (...args: T) => Promise<R>
+) {
+  return (...args: T) => withApiFallback(() => apiFn(...args), () => mockFn(...args));
+}
+
 // ========== Публичные функции ==========
-export async function fetchCases(): Promise<ProjectCaseBriefResponse[]> {
-  return withApiFallback(
-    () => apiFetchCases(),
-    () => mockFetchCases()
-  );
-}
-
-export async function fetchCaseBrief(id: string): Promise<ProjectCaseBriefResponse> {
-  return withApiFallback(
-    () => apiFetchCaseBrief(id),
-    () => mockFetchCaseBrief(id)
-  );
-}
-
-export async function fetchCase(id: string): Promise<ProjectCaseFullResponse> {
-  return withApiFallback(
-    () => apiFetchCase(id),
-    () => mockFetchCase(id)
-  );
-}
-
-export async function updateCase(id: string, data: UpdateCaseRequest): Promise<ProjectCaseFullResponse> {
-  return withApiFallback(
-    () => apiUpdateCase(id, data),
-    () => mockUpdateCase(id, data)
-  );
-}
-
-export async function voteCase(caseId: string, data: CaseVoteRequest): Promise<void> {
-  return withApiFallback(
-    () => apiVoteCase(caseId, data),
-    () => mockVoteCase(caseId, data)
-  );
-}
-
-export async function unvoteCase(caseId: string): Promise<void> {
-  return withApiFallback(
-    () => apiUnvoteCase(caseId),
-    async () => { console.log(`Отмена голоса за кейс ${caseId}`); }
-  );
-}
-
-export async function createCase(data: UpdateCaseRequest): Promise<ProjectCaseFullResponse> {
-  return withApiFallback(
-    () => apiCreateCase(data),
-    () => mockUpdateCase('new', data)
-  );
-}
-
-export async function deleteCase(id: string): Promise<void> {
-  return withApiFallback(
-    () => apiDeleteCase(id),
-    async () => { console.log(`Удаление кейса ${id}`); }
-  );
-}
+export const fetchCases = createApiFunction(apiFetchCases, mockFetchCases);
+export const fetchCaseBrief = createApiFunction(apiFetchCaseBrief, mockFetchCaseBrief);
+export const fetchCase = createApiFunction(apiFetchCase, mockFetchCase);
+export const updateCase = createApiFunction(apiUpdateCase, mockUpdateCase);
+export const voteCase = createApiFunction(apiVoteCase, mockVoteCase);
+export const unvoteCase = createApiFunction(apiUnvoteCase, async (caseId: string) => {
+  console.log(`Отмена голоса за кейс ${caseId}`);
+});
+export const createCase = createApiFunction(apiCreateCase, (data: UpdateCaseRequest) => mockUpdateCase('new', data));
+export const deleteCase = createApiFunction(apiDeleteCase, async (id: string) => {
+  console.log(`Удаление кейса ${id}`);
+});
 
 function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));

@@ -1,6 +1,6 @@
 import { Credentials, UserProfile } from "@/types/auth";
 import { apiClient } from "@/lib/api-client";
-import { API_ENDPOINTS } from "@/config/api";
+import { API_ENDPOINTS, API_CONFIG } from "@/config/api";
 import { withApiFallback, shouldUseMockData } from "@/lib/api-utils";
 
 const mockUsers: Array<UserProfile & { password: string }> = [
@@ -96,7 +96,16 @@ async function apiLogin(credentials: Credentials): Promise<{ token: string; user
 }
 
 async function apiLogout(): Promise<void> {
-  await apiClient.post(API_ENDPOINTS.auth.logout);
+  // Logout может не требовать авторизации, поэтому делаем запрос без токена
+  const response = await fetch(`${API_CONFIG.baseURL}${API_ENDPOINTS.auth.logout}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok && response.status !== 401) {
+    throw new Error('Logout failed');
+  }
 }
 
 async function apiRefresh(): Promise<{ accessToken: string }> {

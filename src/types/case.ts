@@ -29,7 +29,11 @@ export interface ProjectCaseBriefResponse {
   acceptedTeams: number;
   isActive: boolean;
   updatedAt: string; // DateTime as string
-  votes: { [key in CaseReactionType]: CaseVoteResponse[] };
+  votes: {
+    Neutral: CaseVoteResponse[];
+    Positive: CaseVoteResponse[];
+    Negative: CaseVoteResponse[];
+  };
 }
 
 export interface ProjectCaseFullResponse {

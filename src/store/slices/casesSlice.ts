@@ -18,6 +18,11 @@ const initialState: CasesState = {
   currentStatus: "idle",
 };
 
+// Хелпер для обработки ошибок
+const handleRejected = (state: CasesState, action: any, errorField: 'error' | 'currentError') => {
+  state[errorField] = String(action.payload ?? action.error.message ?? "Ошибка");
+};
+
 // Async thunks
 export const loadCases = createAsyncThunk(
   "cases/load",
@@ -109,7 +114,7 @@ const casesSlice = createSlice({
       })
       .addCase(loadCases.rejected, (state, action) => {
         state.status = "failed";
-        state.error = String(action.payload ?? action.error.message ?? "Ошибка");
+        handleRejected(state, action, 'error');
       })
       // Load single case
       .addCase(loadCase.pending, (state) => {
@@ -122,7 +127,7 @@ const casesSlice = createSlice({
       })
       .addCase(loadCase.rejected, (state, action) => {
         state.currentStatus = "failed";
-        state.currentError = String(action.payload ?? action.error.message ?? "Ошибка");
+        handleRejected(state, action, 'currentError');
       })
       // Update case
       .addCase(updateCaseData.fulfilled, (state, action) => {
@@ -144,7 +149,7 @@ const casesSlice = createSlice({
         }
       })
       .addCase(updateCaseData.rejected, (state, action) => {
-        state.currentError = String(action.payload ?? action.error.message ?? "Ошибка");
+        handleRejected(state, action, 'currentError');
       });
   },
 });

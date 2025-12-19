@@ -1,30 +1,14 @@
 'use client';
 
-import { ProjectCardProps } from '@/types/project';
+import { ProjectBriefResponse } from '@/types/project';
 
-const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
-  const getThemeColor = (theme: string) => {
-    switch (theme) {
-      case 'Mobile':
-        return 'bg-green-100 text-green-800';
-      case 'Web':
-        return 'bg-blue-100 text-blue-800';
-      case 'HR':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Game':
-        return 'bg-purple-100 text-purple-800';
-      case 'Analytics':
+const ProjectCard = ({ project, onClick }: { project: ProjectBriefResponse; onClick: (id: string) => void }) => {
+  const getThemeColor = (semester: number) => {
+    switch (semester) {
+      case 0:
         return 'bg-orange-100 text-orange-800';
-      case 'API':
-        return 'bg-pink-100 text-pink-800';
-      case 'Design':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'Marketing':
-        return 'bg-teal-100 text-teal-800';
-      case 'Security':
-        return 'bg-red-100 text-red-800';
-      case 'DevOps':
-        return 'bg-cyan-100 text-cyan-800';
+      case 1:
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -40,14 +24,14 @@ const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
         <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
           {project.title}
         </h3>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getThemeColor(project.theme)}`}>
-          {project.theme}
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getThemeColor(project.semester as number)}`}>
+          {project.semester === 0 ? 'Осень' : 'Весна'}
         </span>
       </div>
 
       {/* Описание */}
       <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-        {project.description}
+        Команда: {project.teamTitle || 'Нет'}
       </p>
 
       {/* Команда */}
@@ -55,13 +39,8 @@ const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
         {/* Даты */}
         <div className="text-right">
           <p className="text-xs text-gray-500">
-            Год: {new Date(project.startDate).toLocaleDateString('ru-RU')}
+            Год: {project.academicYear}
           </p>
-          {project.endDate && (
-            <p className="text-xs text-gray-500">
-              Семестр: {new Date(project.endDate).toLocaleDateString('ru-RU')}
-            </p>
-          )}
         </div>
       </div>
     </div>

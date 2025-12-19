@@ -3,7 +3,7 @@
  * Используйте переменные окружения для настройки URL API
  */
 export const API_CONFIG = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
   timeout: 30000, // 30 секунд
   useMockData: process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true' || !process.env.NEXT_PUBLIC_API_URL,
 } as const;
@@ -14,90 +14,126 @@ export const API_CONFIG = {
 export const API_ENDPOINTS = {
   // Auth
   auth: {
-    login: '/auth/login',
-    logout: '/auth/logout',
-    refresh: '/auth/refresh',
-    me: '/auth/me',
+    login: '/api/auth/login',
+    logout: '/api/auth/logout',
+    refresh: '/api/auth/refresh',
+    register: '/api/auth/register',
+    delete: '/api/auth/delete',
+    me: '/api/auth/me',
   },
-  
-  // Users
-  users: {
-    base: '/users',
-    byId: (id: string) => `/users/${id}`,
-    me: '/users/me',
-    update: (id: string) => `/users/${id}`,
-  },
-  
-  // Projects
-  projects: {
-    base: '/projects',
-    byId: (id: string) => `/projects/${id}`,
-    byCase: (caseId: string) => `/projects?caseId=${caseId}`,
-    byTutor: (tutorId: string) => `/projects?tutorId=${tutorId}`,
-    archive: (id: string) => `/projects/${id}/archive`,
-  },
-  
+
   // Project Cases
   cases: {
-    base: '/cases',
-    byId: (id: string) => `/cases/${id}`,
-    active: '/cases/active',
-    votes: (caseId: string) => `/cases/${caseId}/votes`,
+    list: '/api/project-cases',
+    create: '/api/project-cases',
+    brief: (caseId: string) => `/api/project-cases/${caseId}/brief`,
+    detail: (caseId: string) => `/api/project-cases/${caseId}`,
+    update: (caseId: string) => `/api/project-cases/${caseId}`,
+    delete: (caseId: string) => `/api/project-cases/${caseId}`,
+    vote: (caseId: string) => `/api/project-cases/${caseId}/vote`,
+    unvote: (caseId: string) => `/api/project-cases/${caseId}/unvote`,
   },
-  
-  // Applications
-  applications: {
-    base: '/applications',
-    byId: (id: string) => `/applications/${id}`,
-    byCase: (caseId: string) => `/applications?caseId=${caseId}`,
-    messages: (id: string) => `/applications/${id}/messages`,
-    questions: (id: string) => `/applications/${id}/questions`,
+
+  // Projects
+  projects: {
+    list: '/api/projects',
+    create: '/api/projects',
+    import: '/api/projects/import-from-team-pro',
+    delete: (projectId: string) => `/api/projects/${projectId}`,
+    detail: (projectId: string) => `/api/projects/${projectId}`,
+    update: (projectId: string) => `/api/projects/${projectId}`,
+    removeStudent: (projectId: string, studentId: string) => `/api/projects/${projectId}/students/${studentId}`,
+    addStudent: (projectId: string, studentId: string) => `/api/projects/${projectId}/students/${studentId}`,
   },
-  
+
+  // Student Roles
+  studentRoles: {
+    list: '/api/student-roles',
+    create: '/api/student-roles',
+    update: (roleId: string) => `/api/student-roles/${roleId}`,
+    delete: (roleId: string) => `/api/student-roles/${roleId}`,
+  },
+
+  // Control Points in Project
+  controlPointsInProject: {
+    list: (projectId: string) => `/api/projects/${projectId}/control-points`,
+    create: (projectId: string) => `/api/projects/${projectId}/control-points`,
+    update: (projectId: string, pointId: string) => `/api/projects/${projectId}/control-points/${pointId}`,
+    delete: (projectId: string, pointId: string) => `/api/projects/${projectId}/control-points/${pointId}`,
+  },
+
   // Meetings
   meetings: {
-    base: '/meetings',
-    byId: (id: string) => `/meetings/${id}`,
-    byProject: (projectId: string) => `/meetings?projectId=${projectId}`,
-    attendance: {
-      students: (meetingId: string) => `/meetings/${meetingId}/attendance/students`,
-      tutors: (meetingId: string) => `/meetings/${meetingId}/attendance/tutors`,
-    },
+    create: (projectId: string) => `/api/projects/${projectId}/meetings`,
+    list: (projectId: string) => `/api/projects/${projectId}/meetings`,
+    detail: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
+    update: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
+    delete: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
+    updateStudentAttendance: (projectId: string, meetingId: string, studentId: string) =>
+      `/api/projects/${projectId}/meetings/${meetingId}/attendances/student/${studentId}`,
+    updateTutorAttendance: (projectId: string, meetingId: string, tutorId: string) =>
+      `/api/projects/${projectId}/meetings/${meetingId}/attendances/tutor/${tutorId}`,
   },
-  
-  // Tasks
-  tasks: {
-    base: '/tasks',
-    byId: (id: string) => `/tasks/${id}`,
-    byMeeting: (meetingId: string) => `/tasks?meetingId=${meetingId}`,
-    complete: (id: string) => `/tasks/${id}/complete`,
+
+  // Applications
+  applications: {
+    list: '/api/applications',
+    detail: (applicationId: string) => `/api/applications/${applicationId}`,
+    update: (applicationId: string) => `/api/applications/${applicationId}`,
+    delete: (applicationId: string) => `/api/applications/${applicationId}`,
+    sendMessage: (applicationId: string) => `/api/applications/${applicationId}/send-message`,
   },
-  
-  // Control Points
+
+  // Application Questions
+  questions: {
+    list: '/api/applications/questions',
+    create: '/api/applications/questions',
+    detail: (questionId: string) => `/api/applications/questions/${questionId}`,
+    delete: (questionId: string) => `/api/applications/questions/${questionId}`,
+    update: (questionId: string) => `/api/applications/questions/${questionId}`,
+  },
+
+  // Control Points (Global)
   controlPoints: {
-    base: '/control-points',
-    byId: (id: string) => `/control-points/${id}`,
-    inProject: (projectId: string) => `/control-points?projectId=${projectId}`,
+    list: '/api/control-points',
+    create: '/api/control-points',
+    update: (pointId: string) => `/api/control-points/${pointId}`,
+    delete: (pointId: string) => `/api/control-points/${pointId}`,
   },
-  
+
   // Students
   students: {
-    base: '/students',
-    byId: (id: string) => `/students/${id}`,
-    byProject: (projectId: string) => `/students?projectId=${projectId}`,
-    roles: '/students/roles',
+    list: '/api/students',
+    create: '/api/students',
+    projects: (studentId: string) => `/api/students/${studentId}/projects`,
+    update: (studentId: string) => `/api/students/${studentId}`,
+    delete: (studentId: string) => `/api/students/${studentId}`,
   },
-  
+
+  // Todo Tasks
+  tasks: {
+    create: '/api/tasks',
+    delete: (taskId: string) => `/api/tasks/${taskId}`,
+    update: (taskId: string) => `/api/tasks/${taskId}`,
+    complete: (taskId: string) => `/api/tasks/${taskId}/complete`,
+  },
+
   // Tutors
   tutors: {
-    base: '/tutors',
-    byId: (id: string) => `/tutors/${id}`,
+    create: '/api/tutors',
+    list: '/api/tutors',
+    detail: (tutorId: string) => `/api/tutors/${tutorId}`,
+    update: (tutorId: string) => `/api/tutors/${tutorId}`,
+    delete: (tutorId: string) => `/api/tutors/${tutorId}`,
   },
-  
+
   // Calendar Settings
   calendar: {
-    base: '/calendar/settings',
-    sync: '/calendar/sync',
+    update: '/calendar-settings',
+  },
+
+  // Test
+  test: {
+    getAllProjects: '/test/get-all-projects',
   },
 } as const;
-

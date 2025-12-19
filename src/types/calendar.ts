@@ -17,4 +17,15 @@ export interface AvailabilitySlot {
   end: string;
 }
 
+// Server calendar types
+export interface UpdateCalendarSettingsRequest {
+  serverUrl: string;
+  login?: string;
+  password?: string;
+}
 
+export interface CalendarSettingResponse {
+  serverUrl: string;
+  login?: string;
+  password?: string;
+}

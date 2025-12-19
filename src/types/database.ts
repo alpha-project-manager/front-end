@@ -150,9 +150,9 @@ export interface Meeting {
   isFinished: boolean;
   dateTime: string;
   project?: Project;
-  tasks?: TodoTask[];
-  studentAttendance?: StudentAttendance[];
-  tutorAttendance?: TutorAttendance[];
+  todoTasks?: TodoTask[];
+  studentAttendances?: StudentAttendance[];
+  tutorAttendances?: TutorAttendance[];
 }
 
 export interface StudentAttendance {

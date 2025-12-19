@@ -11,9 +11,9 @@ const AuthPage = () => {
     const dispatch = useAppDispatch();
     const router = useRouter();
     const { status, error } = useAppSelector((state) => state.auth);
-    
+
     const [credentials, setCredentials] = useState<Credentials>({
-        username: "",
+        email: "",
         password: "",
     });
 
@@ -27,7 +27,7 @@ const AuthPage = () => {
 
     return (
         <div className="relative flex items-center justify-center h-screen overflow-hidden px-4">
-            
+
             {/* Панель с формой */}
             <div className="relative z-10 h-11/12 w-full min-w-1/3 max-w-md bg-transparent rounded-[40px] py-[7.5rem] px-[7.813rem] md:mr-12 shadow-2xl border border-black/5">
                 <form onSubmit={handleSubmit} className="flex flex-col">
@@ -35,22 +35,22 @@ const AuthPage = () => {
                     <h1 className="text-5xl md:text-4xl font-medium text-gray-900 mb-[4.375rem] text-center">
                         Вход
                     </h1>
-                    
-                    {/* Поле Логин */}
+
+                    {/* Поле Email */}
                     <div className="mb-10">
                         <div className="border-b-2 border-gray-400 focus-within:border-gray-600 transition-colors">
                             <input
-                                type="text"
-                                value={credentials.username}
-                                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                                type="email"
+                                value={credentials.email}
+                                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                                 className="w-full bg-transparent py-2 outline-none text-gray-900 placeholder-gray-400 text-lg"
-                                placeholder="Логин"
+                                placeholder="Email"
                                 required
-                                autoComplete="given-name"
+                                autoComplete="email"
                             />
                         </div>
                     </div>
-                    
+
                     {/* Поле Пароль */}
                     <div className="mb-[6.25rem]">
                         <div className="border-b-2 border-gray-400 focus-within:border-gray-600 transition-colors">
@@ -71,18 +71,18 @@ const AuthPage = () => {
                         </div>
                     )}
                     </div>
-                    
+
                     {/* Кнопка Войти */}
                     <Button
                         type="submit"
                         disabled={status === "loading"}
                         className="w-full
-                        text-white font-medium text-lg py-2 rounded-4xl transition-colors 
+                        text-white font-medium text-lg py-2 rounded-4xl transition-colors
                         disabled:opacity-50 disabled:cursor-not-allowed mb-5 cursor-pointer"
                     >
                         {status === "loading" ? "Вход..." : "Войти"}
                     </Button>
-                    
+
                     {/* Ссылка Забыли пароль */}
                     <button
                         type="button"
@@ -90,12 +90,12 @@ const AuthPage = () => {
                     >
                         Забыли пароль?
                     </button>
-                    
+
                     {/* Подсказка для разработки */}
                     {process.env.NODE_ENV === 'development' && (
                         <div className="mt-6 p-3 bg-gray-100 rounded-lg text-xs text-gray-600">
                             <p className="font-semibold mb-1">Тестовые данные:</p>
-                            <p>Логин: curator или student</p>
+                            <p>Email: curator@bank.ru или student@urfu.ru</p>
                             <p>Пароль: pass123</p>
                         </div>
                     )}

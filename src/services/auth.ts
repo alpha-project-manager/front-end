@@ -3,14 +3,13 @@ import { apiClient } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/config/api";
 import { withApiFallback, shouldUseMockData } from "@/lib/api-utils";
 
-const mockUsers: Array<UserProfile & { username: string; password: string }> = [
+const mockUsers: Array<UserProfile & { password: string }> = [
   {
     id: "u1",
     displayName: "Куратор Банка",
     email: "curator@bank.ru",
     department: "Corp",
     roles: ["curator"],
-    username: "bank\\curator",
     password: "pass123",
   },
   {
@@ -20,7 +19,6 @@ const mockUsers: Array<UserProfile & { username: string; password: string }> = [
     department: "Университет",
     roles: ["student"],
     university: "УрФУ",
-    username: "urfu\\student",
     password: "pass123",
   },
   // Простые варианты для тестирования
@@ -30,7 +28,6 @@ const mockUsers: Array<UserProfile & { username: string; password: string }> = [
     email: "test@bank.ru",
     department: "Corp",
     roles: ["curator"],
-    username: "curator",
     password: "pass123",
   },
   {
@@ -40,7 +37,6 @@ const mockUsers: Array<UserProfile & { username: string; password: string }> = [
     department: "Университет",
     roles: ["student"],
     university: "УрФУ",
-    username: "student",
     password: "pass123",
   },
 ];
@@ -48,32 +44,32 @@ const mockUsers: Array<UserProfile & { username: string; password: string }> = [
 // ========== Mock функции ==========
 export async function mockLogin(credentials: Credentials): Promise<{ token: string; user: UserProfile }>{
   await delay(300);
-  
+
   // Отладочная информация
   console.log("Попытка входа:", credentials);
-  console.log("Доступные пользователи:", mockUsers.map(u => ({ username: u.username, password: u.password })));
-  
+  console.log("Доступные пользователи:", mockUsers.map(u => ({ email: u.email, password: u.password })));
+
   const account = mockUsers.find(
     (u) => {
-      // Нормализуем имя пользователя для сравнения (приводим к нижнему регистру)
-      const normalizedInput = credentials.username.toLowerCase().trim();
-      const normalizedUsername = u.username.toLowerCase();
-      
+      // Нормализуем email для сравнения (приводим к нижнему регистру)
+      const normalizedInput = credentials.email.toLowerCase().trim();
+      const normalizedEmail = u.email.toLowerCase();
+
       // Проверяем точное совпадение
-      const usernameMatch = normalizedUsername === normalizedInput;
+      const emailMatch = normalizedEmail === normalizedInput;
       const passwordMatch = u.password === credentials.password;
-      
-      console.log(`Проверка пользователя: ${u.username}, вход: "${credentials.username}", username match: ${usernameMatch}, password match: ${passwordMatch}`);
-      
-      return usernameMatch && passwordMatch;
+
+      console.log(`Проверка пользователя: ${u.email}, вход: "${credentials.email}", email match: ${emailMatch}, password match: ${passwordMatch}`);
+
+      return emailMatch && passwordMatch;
     }
   );
-  
+
   if (!account) {
     console.log("Пользователь не найден");
     throw new Error("Неверные учетные данные");
   }
-  
+
   console.log("Вход успешен:", account.displayName);
   return { token: `mock-token-${account.id}`, user: stripSecrets(account) };
 }
@@ -84,15 +80,37 @@ export async function mockLogout(): Promise<void> {
 
 // ========== API функции ==========
 async function apiLogin(credentials: Credentials): Promise<{ token: string; user: UserProfile }> {
-  const response = await apiClient.post<{ token: string; user: UserProfile }>(
+  const response = await apiClient.post<{ accessToken: string; user?: UserProfile }>(
     API_ENDPOINTS.auth.login,
     credentials
   );
-  return response;
+  return {
+    token: response.accessToken,
+    user: response.user || {
+      id: '1',
+      displayName: 'User',
+      email: credentials.email,
+      roles: []
+    }
+  };
 }
 
 async function apiLogout(): Promise<void> {
   await apiClient.post(API_ENDPOINTS.auth.logout);
+}
+
+async function apiRefresh(): Promise<{ accessToken: string }> {
+  const response = await apiClient.post<{ accessToken: string }>(API_ENDPOINTS.auth.refresh);
+  return response;
+}
+
+async function apiRegister(data: { email: string; password: string; isTutor: boolean; firstName: string; lastName?: string; patronymic?: string }): Promise<{ accessToken: string; user?: UserProfile }> {
+  const response = await apiClient.post<{ accessToken: string; user?: UserProfile }>(API_ENDPOINTS.auth.register, data);
+  return response;
+}
+
+async function apiDeleteAccount(): Promise<void> {
+  await apiClient.post(API_ENDPOINTS.auth.delete);
 }
 
 async function apiGetMe(): Promise<UserProfile> {
@@ -123,6 +141,51 @@ export async function logout(): Promise<void> {
 }
 
 /**
+ * Обновить токен
+ * Автоматически использует API или моки в зависимости от конфигурации
+ */
+export async function refreshToken(): Promise<{ accessToken: string }> {
+  return withApiFallback(
+    () => apiRefresh(),
+    async () => ({ accessToken: `mock-refreshed-token-${Date.now()}` })
+  );
+}
+
+/**
+ * Регистрация нового пользователя
+ * Автоматически использует API или моки в зависимости от конфигурации
+ */
+export async function register(data: { email: string; password: string; isTutor: boolean; firstName: string; lastName?: string; patronymic?: string }): Promise<{ accessToken: string; user?: UserProfile }> {
+  return withApiFallback(
+    () => apiRegister(data),
+    async () => {
+      const newUser = {
+        id: `u${mockUsers.length + 1}`,
+        displayName: `${data.firstName} ${data.lastName || ''}`.trim(),
+        email: data.email,
+        department: data.isTutor ? 'Tutor' : 'Student',
+        roles: data.isTutor ? ['tutor'] : ['student'],
+        university: data.isTutor ? undefined : 'УрФУ',
+        password: data.password,
+      };
+      mockUsers.push(newUser);
+      return { accessToken: `mock-token-${newUser.id}`, user: stripSecrets(newUser) };
+    }
+  );
+}
+
+/**
+ * Удалить аккаунт
+ * Автоматически использует API или моки в зависимости от конфигурации
+ */
+export async function deleteAccount(): Promise<void> {
+  return withApiFallback(
+    () => apiDeleteAccount(),
+    async () => { console.log('Аккаунт удален (mock)'); }
+  );
+}
+
+/**
  * Получить текущего пользователя
  */
 export async function getCurrentUser(): Promise<UserProfile> {
@@ -131,17 +194,15 @@ export async function getCurrentUser(): Promise<UserProfile> {
     const mockUser = mockUsers[0];
     return stripSecrets(mockUser);
   }
-  
+
   return apiGetMe();
 }
 
-function stripSecrets(user: (UserProfile & { username: string; password: string })): UserProfile {
-  const { username: _u, password: _p, ...safe } = user;
+function stripSecrets(user: (UserProfile & { password: string })): UserProfile {
+  const { password: _p, ...safe } = user;
   return safe;
 }
 
 function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
 }
-
-

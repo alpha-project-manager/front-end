@@ -145,3 +145,45 @@ export const selectUpcomingMilestones = (s: RootState) => {
     return targetDate >= now && targetDate <= nextWeek && m.status !== 'completed';
   });
 };
+
+// Applications selectors
+export const selectApplications = (s: RootState) => s.applications.items;
+export const selectApplicationsStatus = (s: RootState) => s.applications.status;
+export const selectApplicationsError = (s: RootState) => s.applications.error;
+export const selectCurrentApplication = (s: RootState) => s.applications.currentApplication;
+export const selectCurrentApplicationStatus = (s: RootState) => s.applications.currentStatus;
+export const selectCurrentApplicationError = (s: RootState) => s.applications.currentError;
+
+// Cases selectors
+export const selectCases = (s: RootState) => s.cases.items;
+export const selectCasesStatus = (s: RootState) => s.cases.status;
+export const selectCasesError = (s: RootState) => s.cases.error;
+export const selectCurrentCase = (s: RootState) => s.cases.currentCase;
+export const selectCurrentCaseStatus = (s: RootState) => s.cases.currentStatus;
+export const selectCurrentCaseError = (s: RootState) => s.cases.currentError;
+
+// Сортированные заявки
+export const selectSortedApplications = (s: RootState) => {
+  const applications = s.applications.items;
+  
+  // Сортируем по дате обновления (новые сначала)
+  return applications.sort((a, b) => 
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+};
+
+// Сортированные кейсы
+export const selectSortedCases = (s: RootState) => {
+  const cases = s.cases.items;
+  
+  // Сортируем по названию (алфавитно)
+  return cases.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+};
+
+// Кейсы с доступными местами
+export const selectAvailableCases = (s: RootState) =>
+  s.cases.items.filter(c => c.acceptedTeams < c.maxTeams && c.isActive);
+
+// Заявки по статусу
+export const selectApplicationsByStatus = (status: number) => (s: RootState) =>
+  s.applications.items.filter(app => app.status === status);

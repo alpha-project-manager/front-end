@@ -13,6 +13,8 @@ import reports from "./slices/reportsSlice";
 import archive from "./slices/archiveSlice";
 import votes from "./slices/votesSlice";
 import milestones from "./slices/milestonesSlice";
+import applications from "./slices/applicationsSlice";
+import cases from "./slices/casesSlice";
 
 const authPersistConfig = {
   key: "auth",
@@ -36,6 +38,8 @@ export const store = configureStore({
     archive,
     votes,
     milestones,
+    applications,
+    cases,
   },
   devTools: process.env.NODE_ENV !== "production",
   middleware: (getDefaultMiddleware) =>
@@ -50,5 +54,3 @@ export const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
-
-

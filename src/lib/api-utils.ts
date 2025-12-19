@@ -12,7 +12,8 @@ export function shouldUseMockData(): boolean {
 }
 
 /**
- * Обертка для переключения между моками и API
+ * Обертка для API вызовов без fallback на моки
+ * Теперь приложение полагается только на API
  */
 export async function withApiFallback<T>(
   apiCall: () => Promise<T>,
@@ -21,13 +22,9 @@ export async function withApiFallback<T>(
   if (shouldUseMockData()) {
     return mockCall();
   }
-  
-  try {
-    return await apiCall();
-  } catch (error) {
-    console.warn('API call failed, falling back to mock data:', error);
-    return mockCall();
-  }
+
+  // Убираем fallback на моки - если API недоступен, выбрасываем ошибку
+  return await apiCall();
 }
 
 /**
@@ -60,7 +57,7 @@ export function handleApiError(error: unknown): string {
  */
 export function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams();
-  
+
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (Array.isArray(value)) {
@@ -70,8 +67,7 @@ export function buildQueryString(params: Record<string, unknown>): string {
       }
     }
   });
-  
+
   const query = searchParams.toString();
   return query ? `?${query}` : '';
 }
-

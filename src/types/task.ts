@@ -11,4 +11,19 @@ export interface TaskItem {
   updatedAt?: string;
 }
 
+// Server task types
+export interface CreateTodoTaskRequest {
+  title: string;
+  meetingId: string; // Guid as string
+}
 
+export interface UpdateTodoTaskRequest {
+  title: string;
+  isCompleted: boolean;
+}
+
+export interface TodoTaskResponse {
+  id: string; // Guid as string
+  isCompleted: boolean;
+  title: string;
+}

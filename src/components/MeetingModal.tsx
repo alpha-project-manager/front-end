@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import type { Meeting, TodoTask } from '@/types/database';
 import Modal from './Modal';
-import { mockProjects } from '@/data/mockProjects';
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -21,33 +20,34 @@ export const MeetingModal = ({
 }: MeetingModalProps) => {
   const [formData, setFormData] = useState<Partial<Meeting>>(
     meeting || {
-        title: '',
         description: '',
-        dateTime: new Date().toISOString().slice(0, 16),
-        resultMark: 5,
+        dateTime: new Date().toISOString(),
         isFinished: false,
     }
   );
 
+  const correctDate = (date:string) => {
+      const items = date.split('-')
+      return `${items[2]}.${items[1]}.${items[0]}`
+    }
+
   // Обновляем форму когда приходит или меняется встреча
   useEffect(() => {
+
     if (meeting) {
       setFormData({
-        title: meeting.title || '',
         description: meeting.description || '',
-        dateTime: meeting.dateTime?.slice(0, 16) || new Date().toISOString().slice(0, 16),
+        dateTime: meeting.dateTime || new Date().toISOString(),
         resultMark: meeting.resultMark || 5,
         isFinished: meeting.isFinished || false,
-        tasks: meeting.tasks ? meeting.tasks.map(t => ({ ...t })) : [],
+        todoTasks: meeting.todoTasks ? meeting.todoTasks.map(t => ({ ...t })) : [],
       });
     } else {
       setFormData({
-        title: '',
         description: '',
-        dateTime: new Date().toISOString().slice(0, 16),
-        resultMark: 5,
+        dateTime: new Date().toISOString(),
         isFinished: false,
-        tasks: [],
+        todoTasks: [],
       });
     }
   }, [meeting, isOpen]);
@@ -78,19 +78,19 @@ export const MeetingModal = ({
   // --- Checklist handlers ---
   const handleTaskTitleChange = (index: number, title: string) => {
     setFormData((prev) => {
-      const tasks = (prev.tasks || []).map((t, i) =>
+      const tasks = (prev.todoTasks || []).map((t, i) =>
         i === index ? { ...(t as TodoTask), title } : t
       );
-      return { ...prev, tasks };
+      return { ...prev, todoTasks: tasks };
     });
   };
 
   const toggleTaskCompleted = (index: number) => {
     setFormData((prev) => {
-      const tasks = (prev.tasks || []).map((t, i) =>
+      const tasks = (prev.todoTasks || []).map((t, i) =>
         i === index ? { ...(t as TodoTask), isCompleted: !(t as TodoTask).isCompleted } : t
       );
-      return { ...prev, tasks };
+      return { ...prev, todoTasks: tasks };
     });
   };
 
@@ -101,11 +101,11 @@ export const MeetingModal = ({
       isCompleted: false,
       title: '',
     };
-    setFormData((prev) => ({ ...prev, tasks: [...(prev.tasks || []), newTask] }));
+    setFormData((prev) => ({ ...prev, todoTasks: [...(prev.todoTasks || []), newTask] }));
   };
 
   const removeTask = (index: number) => {
-    setFormData((prev) => ({ ...prev, tasks: (prev.tasks || []).filter((_, i) => i !== index) }));
+    setFormData((prev) => ({ ...prev, todoTasks: (prev.todoTasks || []).filter((_, i) => i !== index) }));
   };
 
   const handleSave = () => {
@@ -119,16 +119,8 @@ export const MeetingModal = ({
         {/* Название */}
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-1">
-            Название
+            Встреча {correctDate(new Date().toISOString().slice(0, 10))}
           </label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title || ''}
-            onChange={handleChange}
-            placeholder="Введите название встречи"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
         </div>
 
         {/* Заметки */}
@@ -161,7 +153,8 @@ export const MeetingModal = ({
         </div>
 
         {/* Оценка */}
-        <div>
+        {meeting?.resultMark && 
+          <div>
           <label className="block text-sm font-medium text-gray-900 mb-1">
             Оценка
           </label>
@@ -175,6 +168,8 @@ export const MeetingModal = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        }
+        
 
         {/* Статус */}
         <div>
@@ -201,10 +196,10 @@ export const MeetingModal = ({
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-3">Список задач</label>
           <div className="space-y-2">
-            {(formData.tasks || []).length === 0 ? (
+            {(formData.todoTasks || []).length === 0 ? (
               <div className="text-sm text-gray-500">Нет задач. Добавьте первую задачу.</div>
             ) : (
-              (formData.tasks || []).map((t, idx) => {
+              (formData.todoTasks || []).map((t, idx) => {
                 const task = t as TodoTask;
                 return (
                   <div key={task.id} className="flex items-center gap-2">

@@ -1,4 +1,7 @@
-import { AvailabilitySlot, CalendarEvent, CalendarProvider } from "@/types/calendar";
+import { AvailabilitySlot, CalendarEvent, CalendarProvider, UpdateCalendarSettingsRequest, CalendarSettingResponse } from "@/types/calendar";
+import { apiClient } from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/config/api";
+import { withApiFallback } from "@/lib/api-utils";
 
 let events: CalendarEvent[] = [];
 
@@ -28,4 +31,19 @@ function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
+// ========== API функции ==========
+async function apiUpdateCalendarSettings(data: UpdateCalendarSettingsRequest): Promise<CalendarSettingResponse> {
+  return await apiClient.put<CalendarSettingResponse>(API_ENDPOINTS.calendar.update, data);
+}
 
+// ========== Публичные функции ==========
+export async function updateCalendarSettings(data: UpdateCalendarSettingsRequest): Promise<CalendarSettingResponse> {
+  return withApiFallback(
+    () => apiUpdateCalendarSettings(data),
+    async () => ({
+      serverUrl: data.serverUrl,
+      login: data.login,
+      password: data.password
+    })
+  );
+}

@@ -2,20 +2,20 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useEffect } from 'react';
-import { mockProjects } from '@/data/mockProjects';
-import { mockMeetings } from '@/data/mockMeetings';
-import { mockMilestones } from '@/data/mockMilestones';
-import ProjectDetails from '@/components/ProjectDetails';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { loadProjectNew, updateProjectNewThunk, createProjectNewThunk } from '@/store/slices/projectsSlice';
+import { loadMeetings } from '@/store/slices/meetingsSlice';
+import { createMeeting, updateMeeting, fetchMeeting } from '@/services/meetings';
+
 import MeetingModal from '@/components/MeetingModal';
 import MilestoneModal from '@/components/MilestoneModal';
 import MilestoneCard from '@/components/MilestoneCard';
 import LoginDialog from '@/components/LoginDialog';
 import Button from '@/components/Button';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/selectors';
-import { createProjectViaAPI } from '@/store/slices/projectsSlice';
-import { Project } from '@/types/project';
+import type { ProjectBriefResponse, CreateNewProjectRequest, UpdateProjectRequest } from '@/types/project';
 import type { Meeting } from '@/types/database';
+import type { CreateMeetingRequest, UpdateMeetingRequest } from '@/types/meeting';
 import { Milestone } from '@/types/milestone';
 
 const ProjectDetailPage = () => {
@@ -25,10 +25,11 @@ const ProjectDetailPage = () => {
   const projectId = params.id as string;
   const isCreateMode = searchParams.get('mode') === 'create';
   
-  const project = mockProjects.find(p => p.id === projectId);
-  const [localProject, setLocalProject] = useState<Project | null>(project || null);
-  const user = useAppSelector(selectCurrentUser);
   const dispatch = useAppDispatch();
+  const user = useAppSelector(selectCurrentUser);
+  const { currentProject, newStatus, newError } = useAppSelector((state) => state.projects);
+  const { items: meetings } = useAppSelector((state) => state.meetings);
+
   const [tab, setTab] = useState<'desc' | 'meetings' | 'milestones'>('desc');
   const [showEdit, setShowEdit] = useState(isCreateMode);
 
@@ -37,63 +38,95 @@ const ProjectDetailPage = () => {
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
 
-
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | undefined>();
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | undefined>();
 
-  const [meetings, setMeetings] = useState<Meeting[]>(
-    mockMeetings.filter(m => m.projectId === projectId)
-  );
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [projectData, setProjectData] = useState<Partial<Project>>({
+  const [projectData, setProjectData] = useState<Partial<ProjectBriefResponse>>({
     title: '',
     description: '',
-    theme: '',
-    startDate: '',
-    endDate: '',
-    curator: '',
-    team: [],
+    teamTitle: '',
+    meetingUrl: '',
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  //Хэндлеры для встреч
+  // Загружаем проект при монтировании
+  useEffect(() => {
+    if (!isCreateMode && projectId) {
+      dispatch(loadProjectNew(projectId));
+    }
+  }, [projectId, isCreateMode, dispatch]);
+
+  // Загружаем встречи для проекта
+  useEffect(() => {
+    if (!isCreateMode && projectId) {
+      dispatch(loadMeetings(projectId));
+    }
+  }, [projectId, isCreateMode, dispatch]);
+
+  // Инициализируем данные проекта при загрузке
+  useEffect(() => {
+    if (currentProject && !isCreateMode) {
+      setProjectData({
+        title: currentProject.title,
+        description: currentProject.description,
+        teamTitle: currentProject.teamTitle,
+        meetingUrl: currentProject.meetingUrl,
+        status: currentProject.status,
+        semester: currentProject.semester,
+        academicYear: currentProject.academicYear,
+      });
+    }
+  }, [currentProject, isCreateMode]);
+
+  // Хэндлеры для встреч
   const handleCreateMeeting = () => {
     setSelectedMeeting(undefined);
     setShowMeetingModal(true);
   };
 
-  const handleCreateMeetingWithIncompleteTasks = () => {
+  const handleCreateMeetingWithIncompleteTasks = async () => {
     // Найти последнюю встречу в отсортированном списке
     if (meetings.length > 0) {
       const sortedMeetings = [...meetings].sort(
         (a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()
       );
-      const lastMeeting = sortedMeetings[0];
-      
-      // Получить незавершённые задачи
-      const incompleteTasks = (lastMeeting.tasks || [])
-        .filter((t) => !(t as any).isCompleted)
-        .map((t) => ({
-          ...(t as any),
-          id: `task-${Date.now()}-${Math.random()}`, // генерируем новый ID для новой встречи
-        }));
-      
-      // Создаем встречу-шаблон с незавершёнными задачами
-      const newMeetingTemplate: Meeting = {
-        id: `meeting-new-${Date.now()}`,
-        projectId,
-        title: '',
-        description: '',
-        dateTime: new Date().toISOString(),
-        resultMark: 5,
-        isFinished: false,
-        tasks: incompleteTasks,
-      };
-      
-      setSelectedMeeting(newMeetingTemplate);
-      setShowMeetingModal(true);
+      const lastMeetingBrief = sortedMeetings[0];
+
+      try {
+        // Загружаем полную информацию о последней встрече
+        const lastMeetingFull = await fetchMeeting(projectId, lastMeetingBrief.id);
+
+        // Получить незавершённые задачи
+        const incompleteTasks = lastMeetingFull.todoTasks
+          .filter(t => !t.isCompleted)
+          .map(t => ({
+            id: `task-${Date.now()}-${Math.random()}`, // генерируем новый ID для новой встречи
+            meetingId: '', // будет установлено при создании
+            isCompleted: false,
+            title: t.title,
+          }));
+
+        // Создаем встречу-шаблон с незавершёнными задачами
+        const newMeetingTemplate: Meeting = {
+          id: `meeting-new-${Date.now()}`,
+          projectId,
+          description: '',
+          dateTime: new Date().toISOString(),
+          isFinished: false,
+          todoTasks: incompleteTasks,
+        };
+
+        setSelectedMeeting(newMeetingTemplate);
+        setShowMeetingModal(true);
+      } catch (error) {
+        console.error('Ошибка загрузки последней встречи:', error);
+        alert('Ошибка при загрузке данных предыдущей встречи. Создаётся пустая встреча.');
+        setSelectedMeeting(undefined);
+        setShowMeetingModal(true);
+      }
     } else {
       // Если встреч нет, просто открываем пустую модалку
       setSelectedMeeting(undefined);
@@ -101,37 +134,71 @@ const ProjectDetailPage = () => {
     }
   };
 
-  const handleEditMeeting = (meeting: Meeting) => {
-    setSelectedMeeting(meeting);
-    setShowMeetingModal(true);
+  const handleEditMeeting = async (meeting: any) => {
+    try {
+      const fullMeeting = await fetchMeeting(projectId, meeting.id);
+      const meetingForModal: Meeting = {
+        id: fullMeeting.id,
+        projectId,
+        title: '',
+        description: fullMeeting.description,
+        resultMark: fullMeeting.resultMark,
+        isFinished: fullMeeting.isFinished,
+        dateTime: fullMeeting.dateTime,
+        todoTasks: fullMeeting.todoTasks.map((t: any) => ({
+          id: t.id,
+          meetingId: fullMeeting.id,
+          isCompleted: t.isCompleted,
+          title: t.title,
+        })),
+      };
+      setSelectedMeeting(meetingForModal);
+      setShowMeetingModal(true);
+    } catch (error) {
+      console.error('Ошибка загрузки встречи:', error);
+      alert('Ошибка при загрузке встречи. Проверьте консоль для деталей.');
+    }
   };
 
-  const handleSaveMeeting = (meetingData: Partial<Meeting>) => {
-    if (selectedMeeting) {
-      // Редактирование существующей встречи
-      setMeetings(meetings.map(m => 
-        m.id === selectedMeeting.id 
-          ? { ...m, ...meetingData }
-          : m
-      ));
-    } else {
-      // Создание новой встречи
-      const newMeeting: Meeting = {
-        id: `meeting-${Date.now()}`,
-        projectId,
-        ...meetingData,
-      } as Meeting;
-      setMeetings([...meetings, newMeeting]);
+  const handleSaveMeeting = async (meetingData: Partial<Meeting>) => {
+    try {
+      if (selectedMeeting?.id) {
+        // Редактирование существующей встречи
+        const todoTasks = (meetingData.todoTasks || []).map(t => ({
+          id: t.id,
+          isCompleted: t.isCompleted,
+          title: t.title,
+        }));
+        await updateMeeting(projectId, selectedMeeting.id, {
+          description: meetingData.description || '',
+          resultMark: meetingData.resultMark || 0,
+          isFinished: meetingData.isFinished || false,
+          dateTime: meetingData.dateTime || '',
+          todoTasks,
+        });
+      } else {
+        // Создание новой встречи
+        const todoTasks = (meetingData.todoTasks || []).map(t => t.title);
+        await createMeeting(projectId, {
+          dateTime: meetingData.dateTime || '',
+          todoTasks,
+        });
+      }
+      // Перезагрузить встречи после сохранения
+      dispatch(loadMeetings(projectId));
+    } catch (error) {
+      console.error('Ошибка сохранения встречи:', error);
+      alert('Ошибка при сохранении встречи. Проверьте консоль для деталей.');
     }
   };
 
   const filteredMeetings = useMemo(() => {
     let filtered = meetings.filter(m => 
-      m.description?.toLowerCase().includes(query.toLowerCase()) ?? false
+      m.title?.toLowerCase().includes(query.toLowerCase()) ?? false
     );
     
     // Сортировка
-    filtered.sort((a, b) => {
+    const sortedFiltered = [...filtered].sort((a, b) => {
       let aValue: any, bValue: any;
       
       switch (sortBy) {
@@ -158,15 +225,8 @@ const ProjectDetailPage = () => {
       }
     });
     
-    return filtered;
+    return sortedFiltered;
   }, [meetings, query, sortBy, sortOrder]);
-
-  // const filteredMeetingsOld = useMemo(() => 
-  //   meetings.filter(m => 
-  //     m.description?.toLowerCase().includes(query.toLowerCase()) ?? false
-  //   ),
-  //   [meetings, query]
-  // );
 
   // Хэндлеры для контрольных точек
   const handleCreateMilestone = () => {
@@ -185,27 +245,6 @@ const ProjectDetailPage = () => {
     }
   }
 
-  // Инициализируем данные проекта при входе в режим редактирования
-  useEffect(() => {
-    if (project && !isCreateMode && showEdit) {
-      setProjectData({
-        title: project.title,
-        description: project.description,
-        theme: project.theme,
-        startDate: project.startDate,
-        endDate: project.endDate || '',
-        curator: project.curator || '',
-        team: project.team || [],
-      });
-      setLocalProject(project as Project);
-    }
-  }, [project, isCreateMode, showEdit]);
-
-  useEffect(() => {
-    // keep local copy in sync if project changes externally
-    if (project) setLocalProject(project as Project);
-  }, [project]);
-
   const handleSaveProject = async () => {
     if (!user) {
       setShowLogin(true);
@@ -213,22 +252,21 @@ const ProjectDetailPage = () => {
     }
 
     // Проверяем обязательные поля
-    if (!projectData.title || !projectData.description || !projectData.theme || !projectData.startDate) {
+    if (!projectData.title || !projectData.description || !projectData.teamTitle) {
       alert('Пожалуйста, заполните все обязательные поля');
       return;
     }
 
     setIsSaving(true);
     try {
-      const newProject = await dispatch(createProjectViaAPI({
+      const createData: CreateNewProjectRequest = {
         title: projectData.title,
         description: projectData.description,
-        theme: projectData.theme,
-        startDate: projectData.startDate,
-        endDate: projectData.endDate || undefined,
-        curator: projectData.curator || undefined,
-        team: projectData.team || [],
-      })).unwrap();
+        teamTitle: projectData.teamTitle,
+        meetingUrl: projectData.meetingUrl,
+      };
+      
+      const newProject = await dispatch(createProjectNewThunk(createData)).unwrap();
       
       // Перенаправляем на страницу созданного проекта
       router.push(`/projects/${newProject.id}`);
@@ -241,26 +279,34 @@ const ProjectDetailPage = () => {
   };
 
   const handleUpdateProject = async () => {
-    if (!user) {
+    if (!user || !currentProject) {
       setShowLogin(true);
       return;
     }
 
-    if (!project) return;
-
     // Проверяем обязательные поля
-    if (!projectData.title || !projectData.description || !projectData.theme || !projectData.startDate) {
+    if (!projectData.title || !projectData.description || !projectData.teamTitle) {
       alert('Пожалуйста, заполните все обязательные поля');
       return;
     }
 
     setIsSaving(true);
     try {
-      // TODO: Добавить функцию обновления через API
-      // await dispatch(updateProjectViaAPI({ id: project.id, data: {...} })).unwrap();
+      const updateData: UpdateProjectRequest = {
+        title: projectData.title,
+        description: projectData.description,
+        teamTitle: projectData.teamTitle,
+        meetingUrl: projectData.meetingUrl,
+        status: projectData.status || 1, // InWork по умолчанию
+        semester: projectData.semester || 1, // Spring по умолчанию
+        academicYear: projectData.academicYear || 2024,
+      };
       
-      // Временно просто закрываем режим редактирования
-      alert('Обновление проекта через API пока не реализовано');
+      await dispatch(updateProjectNewThunk({ 
+        id: currentProject.id, 
+        data: updateData 
+      })).unwrap();
+      
       setShowEdit(false);
     } catch (error) {
       console.error('Ошибка при обновлении проекта:', error);
@@ -302,7 +348,7 @@ const ProjectDetailPage = () => {
               </label>
               <input
                 type="text"
-                value={projectData.title}
+                value={projectData.title || ''}
                 onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Введите название проекта"
@@ -314,7 +360,7 @@ const ProjectDetailPage = () => {
                 Описание *
               </label>
               <textarea
-                value={projectData.description}
+                value={projectData.description || ''}
                 onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={4}
@@ -324,53 +370,27 @@ const ProjectDetailPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Тема *
+                Название команды *
               </label>
               <input
                 type="text"
-                value={projectData.theme}
-                onChange={(e) => setProjectData({ ...projectData, theme: e.target.value })}
+                value={projectData.teamTitle || ''}
+                onChange={(e) => setProjectData({ ...projectData, teamTitle: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Например: Web, Mobile, API"
+                placeholder="Введите название команды"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Дата начала *
-                </label>
-                <input
-                  type="date"
-                  value={projectData.startDate}
-                  onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Дата окончания
-                </label>
-                <input
-                  type="date"
-                  value={projectData.endDate}
-                  onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Куратор
+                Ссылка на встречу
               </label>
               <input
-                type="text"
-                value={projectData.curator}
-                onChange={(e) => setProjectData({ ...projectData, curator: e.target.value })}
+                type="url"
+                value={projectData.meetingUrl || ''}
+                onChange={(e) => setProjectData({ ...projectData, meetingUrl: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Введите имя куратора"
+                placeholder="https://meet.google.com/..."
               />
             </div>
 
@@ -397,8 +417,52 @@ const ProjectDetailPage = () => {
     );
   }
 
-  // Если режим редактирования и проект существует, показываем форму редактирования
-  if (showEdit && project && !isCreateMode) {
+  if (newStatus === 'loading') {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (newError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">Ошибка загрузки: {newError}</p>
+        <button
+          onClick={() => router.push('/active')}
+          className="text-blue-600 hover:underline"
+        >
+          Вернуться к проектам
+        </button>
+      </div>
+    );
+  }
+
+  if (!currentProject) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Проект не найден
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Проект с ID "{projectId}" не существует
+          </p>
+          <button
+            onClick={() => router.push('/active')}
+            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Вернуться к списку проектов
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Если режим редактирования, показываем форму редактирования
+  if (showEdit) {
     return (
       <div className="space-y-6">
         {/* Навигация */}
@@ -429,7 +493,7 @@ const ProjectDetailPage = () => {
               </label>
               <input
                 type="text"
-                value={projectData.title}
+                value={projectData.title || ''}
                 onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Введите название проекта"
@@ -441,7 +505,7 @@ const ProjectDetailPage = () => {
                 Описание *
               </label>
               <textarea
-                value={projectData.description}
+                value={projectData.description || ''}
                 onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={4}
@@ -451,53 +515,27 @@ const ProjectDetailPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Тема *
+                Название команды *
               </label>
               <input
                 type="text"
-                value={projectData.theme}
-                onChange={(e) => setProjectData({ ...projectData, theme: e.target.value })}
+                value={projectData.teamTitle || ''}
+                onChange={(e) => setProjectData({ ...projectData, teamTitle: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Например: Web, Mobile, API"
+                placeholder="Введите название команды"
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Дата начала *
-                </label>
-                <input
-                  type="date"
-                  value={projectData.startDate}
-                  onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Дата окончания
-                </label>
-                <input
-                  type="date"
-                  value={projectData.endDate}
-                  onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Куратор
+                Ссылка на встречу
               </label>
               <input
-                type="text"
-                value={projectData.curator}
-                onChange={(e) => setProjectData({ ...projectData, curator: e.target.value })}
+                type="url"
+                value={projectData.meetingUrl || ''}
+                onChange={(e) => setProjectData({ ...projectData, meetingUrl: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Введите имя куратора"
+                placeholder="https://meet.google.com/..."
               />
             </div>
 
@@ -524,52 +562,36 @@ const ProjectDetailPage = () => {
     );
   }
 
-  if (!project) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Проект не найден
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Проект с ID "{projectId}" не существует
-          </p>
-          <button
-            onClick={() => router.push('/active')}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Вернуться к списку проектов
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const getThemeColor = (theme: string) => {
-    switch (theme) {
-      case 'Mobile':
-        return 'bg-green-100 text-green-800';
-      case 'Web':
-        return 'bg-blue-100 text-blue-800';
-      case 'HR':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Game':
-        return 'bg-purple-100 text-purple-800';
-      case 'Analytics':
+  const getSemesterColor = (semester: number) => {
+    switch (semester) {
+      case 0: // Autumn
         return 'bg-orange-100 text-orange-800';
-      case 'API':
-        return 'bg-pink-100 text-pink-800';
-      case 'Design':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'Marketing':
-        return 'bg-teal-100 text-teal-800';
-      case 'Security':
-        return 'bg-red-100 text-red-800';
-      case 'DevOps':
-        return 'bg-cyan-100 text-cyan-800';
+      case 1: // Spring
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusColor = (status: number) => {
+    switch (status) {
+      case 0: // Created
+        return 'bg-gray-100 text-gray-800';
+      case 1: // InWork
+        return 'bg-blue-100 text-blue-800';
+      case 2: // Completed
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: number) => {
+    switch (status) {
+      case 0: return 'Создан';
+      case 1: return 'В работе';
+      case 2: return 'Завершён';
+      default: return 'Неизвестно';
     }
   };
 
@@ -584,46 +606,41 @@ const ProjectDetailPage = () => {
           Проекты
         </button>
         <span>›</span>
-        <span className="text-gray-900">{project.title}</span>
+        <span className="text-gray-900">{currentProject.title}</span>
       </div>
 
       {/* Заголовок проекта */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div className="flex-1">
-             <div className="flex items-center gap-4 mb-4">
-               <h1 className="text-3xl font-bold text-gray-900">
-                 {project.title}
-               </h1>
-               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getThemeColor(project.theme)}`}>
-                 {project.theme}
-               </span>
-               {/* Status selector */}
-               <select
-                 value={localProject?.status || 'active'}
-                 onChange={(e) => {
-                   const newStatus = e.target.value;
-                   // update mockProjects in-memory
-                   const idx = mockProjects.findIndex((p) => p.id === project.id);
-                   if (idx !== -1) {
-                     mockProjects[idx].status = newStatus;
-                   }
-                   setLocalProject(prev => prev ? { ...prev, status: newStatus } : prev);
-                   // refresh router to update lists
-                   router.refresh();
-                 }}
-                 className="ml-3 px-2 py-1 border border-gray-200 rounded-md text-sm"
-               >
-                 <option value="active">Active</option>
-                 <option value="archived">Archived</option>
-                 <option value="draft">Draft</option>
-                 <option value="completed">Completed</option>
-               </select>
-             </div>
+            <div className="flex items-center gap-4 mb-4">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {currentProject.title}
+              </h1>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentProject.status)}`}>
+                {getStatusLabel(currentProject.status)}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getSemesterColor(currentProject.semester)}`}>
+                {currentProject.semester === 0 ? 'Autumn' : 'Spring'} {currentProject.academicYear}
+              </span>
+            </div>
             
-            <p className="text-gray-600 text-lg mb-6">
-              {project.description}
+            <p className="text-gray-600 text-lg mb-4">
+              {currentProject.description}
             </p>
+            
+            <div className="flex items-center gap-6 text-sm text-gray-500">
+              <div className="flex items-center gap-2">
+                <span>👥</span>
+                <span>Команда: {currentProject.teamTitle}</span>
+              </div>
+              {currentProject.tutor && (
+                <div className="flex items-center gap-2">
+                  <span>👨‍🏫</span>
+                  <span>Тьютор: {currentProject.tutor.fullName}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Действия */}
@@ -631,14 +648,21 @@ const ProjectDetailPage = () => {
             <Button
               variant="secondary"
               fullWidth
+              onClick={() => {
+                if (user) {
+                  setShowEdit(!showEdit);
+                } else {
+                  setShowLogin(true);
+                }
+              }}
             >
-              Поделиться
+              Редактировать
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Табы по вайрфрейму */}
+      {/* Табы */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 pt-4 border-b border-gray-200">
           <div className="flex gap-6">
@@ -685,18 +709,27 @@ const ProjectDetailPage = () => {
         </div>
         <div className="p-6">
           {tab === 'desc' ? (
-            <ProjectDetails 
-              project={project} 
-              isEditing={showEdit}
-              onEdit={() => {
-                if (user) {
-                  setShowEdit(!showEdit);
-                } else {
-                  setShowLogin(true);
-                }
-              }}
-              onSave={handleUpdateProject}
-            />
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Описание проекта</h3>
+                <p className="text-gray-600">
+                  {currentProject.description || 'Описание не указано'}
+                </p>
+              </div>
+              {currentProject.meetingUrl && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Ссылка на встречу</h3>
+                  <a
+                    href={currentProject.meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {currentProject.meetingUrl}
+                  </a>
+                </div>
+              )}
+            </div>
           ) : tab === 'meetings' ? (
             <div className="space-y-6">
               {/* Заголовок и поиск */}
@@ -751,7 +784,7 @@ const ProjectDetailPage = () => {
                   filteredMeetings.map((meeting) => (
                     <div
                       key={meeting.id}
-                      onClick={() => handleEditMeeting(meeting)}
+                      onClick={() => handleEditMeeting(meeting as any)}
                       className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -776,6 +809,10 @@ const ProjectDetailPage = () => {
                           <span>⭐</span>
                           <span>{meeting.resultMark || 'Нет оценки'}/10</span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <span>✅</span>
+                          <span>{meeting.completedTasks}/{meeting.totalTasks} задач</span>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -784,15 +821,13 @@ const ProjectDetailPage = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {mockMilestones
-                .filter(m => m.projectId === projectId)
-                .map(milestone => (
-                  <button className="w-full text-left" key={milestone.id}
-                  onClick={() => handleEditMilestone(milestone)}>
-                  <MilestoneCard key={milestone.id} milestone={milestone} />
-                  </button>
-                ))
-              }
+              {/* TODO: Добавить контрольные точки */}
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="text-gray-500">
+                  <div className="text-4xl mb-2">🎯</div>
+                  <p className="text-sm">Контрольные точки будут добавлены в следующей итерации</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

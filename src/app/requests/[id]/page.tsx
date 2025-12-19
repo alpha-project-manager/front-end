@@ -2,26 +2,28 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { mockRequests } from '@/data/mockRequests';
-import { mockProjects } from '@/data/mockProjects';
-import { getRequestMessages, addRequestMessage, type RequestMessage } from '@/data/mockRequestMessages';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { loadApplication, updateApplicationStatus, sendApplicationMessage } from '@/store/slices/applicationsSlice';
+import type { ApplicationResponse, SendMessageRequest } from '@/types/application';
 
-const getStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    pending: 'На рассмотрении',
-    approved: 'Одобрена',
-    rejected: 'Отклонена',
-    scheduled: 'Запланирована',
+const getStatusLabel = (status: number): string => {
+  const labels: Record<number, string> = {
+    0: 'В работе',
+    1: 'Новая',
+    2: 'Встреча запланирована',
+    3: 'Принята',
+    4: 'Отклонена',
   };
-  return labels[status] || status;
+  return labels[status] || 'Неизвестно';
 };
 
-const getStatusColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    pending: 'text-yellow-600 bg-yellow-50 border-yellow-200',
-    approved: 'text-green-600 bg-green-50 border-green-200',
-    rejected: 'text-red-600 bg-red-50 border-red-200',
-    scheduled: 'text-blue-600 bg-blue-50 border-blue-200',
+const getStatusColor = (status: number): string => {
+  const colors: Record<number, string> = {
+    0: 'text-blue-600 bg-blue-50 border-blue-200',
+    1: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    2: 'text-purple-600 bg-purple-50 border-purple-200',
+    3: 'text-green-600 bg-green-50 border-green-200',
+    4: 'text-red-600 bg-red-50 border-red-200',
   };
   return colors[status] || 'text-gray-600 bg-gray-50 border-gray-200';
 };
@@ -29,27 +31,32 @@ const getStatusColor = (status: string): string => {
 export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const requestId = params.id as string;
 
-  const request = mockRequests.find(r => r.id === requestId);
-  const project = request?.projectId
-    ? mockProjects.find(p => p.id === request.projectId)
-    : null;
+  const application = useAppSelector((state) => state.applications.currentApplication);
+  const { currentStatus, currentError } = useAppSelector((state) => state.applications);
 
-  const [messages, setMessages] = useState<RequestMessage[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<'pending' | 'approved' | 'rejected' | 'scheduled'>(
-    (request?.status as 'pending' | 'approved' | 'rejected' | 'scheduled') || 'pending'
-  );
+  const [status, setStatus] = useState<number>(1); // По умолчанию "Новая"
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Инициализируем сообщения при загрузке
+  // Загружаем заявку при монтировании
   useEffect(() => {
-    const loadedMessages = getRequestMessages(requestId);
-    setMessages(loadedMessages);
-    scrollToBottom();
-  }, [requestId]);
+    if (requestId) {
+      dispatch(loadApplication(requestId));
+    }
+  }, [requestId, dispatch]);
+
+  // Обновляем локальное состояние при загрузке данных
+  useEffect(() => {
+    if (application) {
+      setStatus(application.status);
+      setMessages(application.messages || []);
+    }
+  }, [application]);
 
   // Скролл к последнему сообщению
   const scrollToBottom = () => {
@@ -61,46 +68,78 @@ export default function RequestDetailPage() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !application) return;
 
     setIsLoading(true);
     try {
-      // Добавляем исходящее сообщение
-      const sentMsg = addRequestMessage(requestId, newMessage, 'outgoing');
-      setMessages([...messages, sentMsg]);
+      const messageData: SendMessageRequest = {
+        content: newMessage.trim()
+      };
+      
+      await dispatch(sendApplicationMessage({ 
+        applicationId: application.id, 
+        data: messageData 
+      })).unwrap();
+      
       setNewMessage('');
-
-      // Имитируем задержку перед ответом
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Добавляем входящее сообщение (имитация ответа от бота)
-      const replyMsg = addRequestMessage(
-        requestId,
-        'Спасибо за ваше сообщение! Мы его учтём.',
-        'incoming'
-      );
-      setMessages(prev => [...prev, replyMsg]);
+      
+      // Перезагружаем заявку для получения обновленных сообщений
+      dispatch(loadApplication(application.id));
+    } catch (error) {
+      console.error('Ошибка отправки сообщения:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleStatusChange = async (newStatus: number) => {
+    if (!application) return;
+
+    try {
+      await dispatch(updateApplicationStatus({
+        id: application.id,
+        data: { status: newStatus }
+      })).unwrap();
+      
+      setStatus(newStatus);
+    } catch (error) {
+      console.error('Ошибка обновления статуса:', error);
+    }
+  };
+
   const handleDeleteRequest = () => {
     if (confirm('Вы уверены, что хотите удалить эту заявку? Это действие нельзя отменить.')) {
-      // Удаляем из mockRequests
-      const index = mockRequests.findIndex(r => r.id === requestId);
-      if (index !== -1) {
-        mockRequests.splice(index, 1);
-      }
-      // Перенаправляем обратно к списку заявок
+      // TODO: Реализовать удаление через API
       router.push('/requests');
     }
   };
 
-  if (!request) {
+  if (currentStatus === 'loading') {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (currentError) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600 mb-4">Запрос не найден</p>
+        <p className="text-red-600 mb-4">Ошибка загрузки: {currentError}</p>
+        <button
+          onClick={() => router.back()}
+          className="text-blue-600 hover:underline"
+        >
+          Вернуться назад
+        </button>
+      </div>
+    );
+  }
+
+  if (!application) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600 mb-4">Заявка не найдена</p>
         <button
           onClick={() => router.back()}
           className="text-blue-600 hover:underline"
@@ -125,11 +164,17 @@ export default function RequestDetailPage() {
                 ← Назад
               </button>
               <h1 className="text-lg font-semibold text-gray-900">
-                {project?.title || 'Запрос'}
+                {application.teamTitle}
               </h1>
             </div>
             <p className="text-sm text-gray-600">
-              Заявка от {new Date(request.createdAt).toLocaleDateString('ru-RU')}
+              Кейс: {application.caseTitle}
+            </p>
+            <p className="text-sm text-gray-600">
+              Telegram: {application.telegramUsername}
+            </p>
+            <p className="text-xs text-gray-500">
+              Обновлено: {new Date(application.updatedAt).toLocaleDateString('ru-RU')}
             </p>
           </div>
           <div className="flex gap-2">
@@ -153,23 +198,18 @@ export default function RequestDetailPage() {
                 <p>Нет сообщений. Начните разговор!</p>
               </div>
             ) : (
-              messages.map(msg => (
+              messages.map((msg: any) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.fromStudents ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`px-4 py-2 rounded-lg break-words ${
-                      msg.direction === 'outgoing'
+                    className={`px-4 py-2 rounded-lg break-words max-w-xs lg:max-w-md ${
+                      msg.fromStudents
                         ? 'bg-blue-600 text-white rounded-br-none'
                         : 'bg-gray-100 text-gray-900 rounded-bl-none'
                     }`}
                   >
-                    {msg.senderName && (
-                      <p className="text-xs font-semibold mb-1 opacity-75">
-                        {msg.senderName}
-                      </p>
-                    )}
                     <p className="text-sm break-words">{msg.content}</p>
                     <p className="text-xs mt-1 opacity-70">
                       {new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
@@ -196,7 +236,7 @@ export default function RequestDetailPage() {
                     handleSendMessage();
                   }
                 }}
-                placeholder="Здравствуйте...."
+                placeholder="Напишите сообщение..."
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 rows={3}
                 disabled={isLoading}
@@ -225,13 +265,14 @@ export default function RequestDetailPage() {
               <div className="relative">
                 <select
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as 'pending' | 'approved' | 'rejected' | 'scheduled')}
+                  onChange={(e) => handleStatusChange(Number(e.target.value))}
                   className={`w-full px-3 py-2 rounded border appearance-none cursor-pointer text-sm font-medium pr-8 ${getStatusColor(status)}`}
                 >
-                  <option value="pending">На рассмотрении</option>
-                  <option value="approved">Одобрена</option>
-                  <option value="rejected">Отклонена</option>
-                  <option value="scheduled">Запланирована</option>
+                  <option value={0}>В работе</option>
+                  <option value={1}>Новая</option>
+                  <option value={2}>Встреча запланирована</option>
+                  <option value={3}>Принята</option>
+                  <option value={4}>Отклонена</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                   <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -241,44 +282,39 @@ export default function RequestDetailPage() {
               </div>
             </div>
 
-            {/* Проект */}
-            {project && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-1">Проект</p>
-                <p className="text-sm text-gray-900">{project.title}</p>
-              </div>
-            )}
-
-            {/* Дата создания */}
+            {/* Кейс */}
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">Дата создания</p>
+              <p className="text-xs font-medium text-gray-600 mb-1">Кейс</p>
+              <p className="text-sm text-gray-900">{application.caseTitle}</p>
+            </div>
+
+            {/* Команда */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">Команда</p>
+              <p className="text-sm text-gray-900">{application.teamTitle}</p>
+            </div>
+
+            {/* Telegram */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">Telegram</p>
+              <p className="text-sm text-gray-900">{application.telegramUsername}</p>
+            </div>
+
+            {/* Дата обновления */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">Обновлено</p>
               <p className="text-sm text-gray-900">
-                {new Date(request.createdAt).toLocaleDateString('ru-RU')}
+                {new Date(application.updatedAt).toLocaleDateString('ru-RU')}
               </p>
             </div>
 
-            {/* Источник */}
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">Источник</p>
-              <p className="text-sm text-gray-900">
-                {request.source === 'telegram_bot' ? 'Telegram Bot' : 'Bank Portal'}
-              </p>
-            </div>
-
-            {/* Предпочитаемые слоты */}
-            {request.preferredSlots.length > 0 && (
+            {/* Непрочитанные сообщения */}
+            {application.unreadMessagesCount > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">
-                  Предпочитаемое время
+                <p className="text-xs font-medium text-gray-600 mb-1">Непрочитанных</p>
+                <p className="text-sm text-blue-600 font-medium">
+                  {application.unreadMessagesCount}
                 </p>
-                <div className="space-y-1">
-                  {request.preferredSlots.map((slot, idx) => (
-                    <div key={idx} className="text-xs text-gray-700 bg-white p-2 rounded border border-gray-200">
-                      {new Date(slot.start).toLocaleString('ru-RU')} —{' '}
-                      {new Date(slot.end).toLocaleTimeString('ru-RU')}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>

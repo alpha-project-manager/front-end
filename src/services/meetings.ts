@@ -1,69 +1,144 @@
-import { Meeting, MeetingSlotOption, ParticipantAvailability } from "@/types/meeting";
+import { MeetingBriefResponse, MeetingFullResponse, MeetingBriefListResponse, CreateMeetingRequest, UpdateMeetingRequest, UpdateAttendanceRequest, TodoTaskResponse, AttendanceInfoResponse } from "@/types/meeting";
+import { apiClient } from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/config/api";
+import { withApiFallback } from "@/lib/api-utils";
 
-const meetings: Meeting[] = [];
+// ========== Mock функции ==========
+const mockMeetings: MeetingBriefResponse[] = [
+  {
+    id: "meeting1",
+    title: "Встреча команды",
+    dateTime: "2024-01-20T14:00:00Z",
+    isFinished: false,
+    totalTasks: 5,
+    completedTasks: 2,
+    resultMark: undefined
+  },
+  {
+    id: "meeting2",
+    title: "Презентация проекта",
+    dateTime: "2024-01-22T10:00:00Z",
+    isFinished: true,
+    totalTasks: 3,
+    completedTasks: 3,
+    resultMark: 4.5
+  }
+];
 
-export async function createMeeting(payload: Omit<Meeting, "id" | "selectedSlot" | "notificationsSent">): Promise<Meeting> {
-  await delay(150);
-  const created: Meeting = { id: String(Date.now()), ...payload, selectedSlot: undefined, notificationsSent: false };
-  meetings.push(created);
-  return created;
-}
-
-export async function proposeSlots(meetingId: string, slots: MeetingSlotOption[]): Promise<Meeting> {
-  await delay(120);
-  const m = find(meetingId);
-  m.slotOptions = mergeVotes(m.slotOptions, slots);
-  return m;
-}
-
-export async function chooseOptimalSlot(meetingId: string, participantsAvailability: ParticipantAvailability[]): Promise<Meeting> {
+export async function mockFetchMeetings(): Promise<MeetingBriefResponse[]> {
   await delay(200);
-  const m = find(meetingId);
-  const scored = m.slotOptions.map((slot) => ({
-    slot,
-    score: scoreSlot(slot, participantsAvailability),
-  }));
-  scored.sort((a, b) => b.score - a.score);
-  m.selectedSlot = scored[0]?.slot ? { start: scored[0].slot.start, end: scored[0].slot.end } : undefined;
-  return m;
+  return mockMeetings;
 }
 
-export async function sendNotifications(meetingId: string): Promise<void> {
-  await delay(100);
-  const m = find(meetingId);
-  m.notificationsSent = true;
+export async function mockFetchMeeting(id: string): Promise<MeetingFullResponse> {
+  await delay(150);
+  return {
+    id,
+    description: "Описание встречи",
+    resultMark: 4.0,
+    isFinished: false,
+    dateTime: "2024-01-20T14:00:00Z",
+    todoTasks: [
+      { id: "task1", isCompleted: true, title: "Подготовить презентацию" },
+      { id: "task2", isCompleted: false, title: "Обсудить техническое задание" }
+    ],
+    studentAttendances: [
+      { personId: "student1", fullName: "Иванов И.И.", attended: true },
+      { personId: "student2", fullName: "Петров П.П.", attended: false }
+    ],
+    tutorAttendances: [
+      { personId: "tutor1", fullName: "Сидоров С.С.", attended: true }
+    ]
+  };
 }
 
-function scoreSlot(slot: MeetingSlotOption, availability: ParticipantAvailability[]): number {
-  const votesScore = slot.votes.reduce((acc, v) => acc + v.vote, 0);
-  const conflicts = availability.some((a) => a.busySlots.some((b) => overlaps(slot.start, slot.end, b.start, b.end)));
-  return votesScore + (conflicts ? -10 : 0);
+// ========== API функции ==========
+async function apiFetchMeetings(projectId: string): Promise<MeetingBriefResponse[]> {
+  const response = await apiClient.get<MeetingBriefListResponse>(API_ENDPOINTS.meetings.list(projectId));
+  return response.meetings;
 }
 
-function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-  return !(new Date(aEnd) <= new Date(bStart) || new Date(aStart) >= new Date(bEnd));
+async function apiFetchMeeting(projectId: string, meetingId: string): Promise<MeetingFullResponse> {
+  return await apiClient.get<MeetingFullResponse>(API_ENDPOINTS.meetings.detail(projectId, meetingId));
 }
 
-function mergeVotes(existing: MeetingSlotOption[], incoming: MeetingSlotOption[]): MeetingSlotOption[] {
-  const map = new Map<string, MeetingSlotOption>();
-  const key = (s: MeetingSlotOption) => `${s.start}-${s.end}`;
-  [...existing, ...incoming].forEach((s) => {
-    const k = key(s);
-    const prev = map.get(k);
-    if (!prev) map.set(k, { ...s });
-    else map.set(k, { ...prev, votes: [...prev.votes, ...s.votes] });
-  });
-  return [...map.values()];
+async function apiCreateMeeting(projectId: string, data: CreateMeetingRequest): Promise<MeetingBriefResponse> {
+  return await apiClient.post<MeetingBriefResponse>(API_ENDPOINTS.meetings.create(projectId), data);
 }
 
-function find(id: string): Meeting {
-  const m = meetings.find((x) => x.id === id);
-  if (!m) throw new Error("Встреча не найдена");
-  return m;
+async function apiUpdateMeeting(projectId: string, meetingId: string, data: UpdateMeetingRequest): Promise<MeetingFullResponse> {
+  return await apiClient.put<MeetingFullResponse>(API_ENDPOINTS.meetings.update(projectId, meetingId), data);
+}
+
+async function apiUpdateStudentAttendance(projectId: string, meetingId: string, studentId: string, data: UpdateAttendanceRequest): Promise<void> {
+  await apiClient.put<void>(API_ENDPOINTS.meetings.updateStudentAttendance(projectId, meetingId, studentId), data);
+}
+
+async function apiUpdateTutorAttendance(projectId: string, meetingId: string, tutorId: string, data: UpdateAttendanceRequest): Promise<void> {
+  await apiClient.put<void>(API_ENDPOINTS.meetings.updateTutorAttendance(projectId, meetingId, tutorId), data);
+}
+
+async function apiDeleteMeeting(projectId: string, meetingId: string): Promise<void> {
+  await apiClient.delete<void>(API_ENDPOINTS.meetings.delete(projectId, meetingId));
+}
+
+// ========== Публичные функции ==========
+export async function fetchMeetings(projectId: string): Promise<MeetingBriefResponse[]> {
+  return withApiFallback(
+    () => apiFetchMeetings(projectId),
+    () => mockFetchMeetings()
+  );
+}
+
+export async function fetchMeeting(projectId: string, meetingId: string): Promise<MeetingFullResponse> {
+  return withApiFallback(
+    () => apiFetchMeeting(projectId, meetingId),
+    () => mockFetchMeeting(meetingId)
+  );
+}
+
+export async function createMeeting(projectId: string, data: CreateMeetingRequest): Promise<MeetingBriefResponse> {
+  return withApiFallback(
+    () => apiCreateMeeting(projectId, data),
+    async () => ({
+      id: String(Date.now()),
+      title: "Новая встреча",
+      dateTime: data.dateTime,
+      isFinished: false,
+      totalTasks: data.todoTasks.length,
+      completedTasks: 0
+    })
+  );
+}
+
+export async function updateMeeting(projectId: string, meetingId: string, data: UpdateMeetingRequest): Promise<MeetingFullResponse> {
+  return withApiFallback(
+    () => apiUpdateMeeting(projectId, meetingId, data),
+    () => mockFetchMeeting(meetingId)
+  );
+}
+
+export async function updateStudentAttendance(projectId: string, meetingId: string, studentId: string, data: UpdateAttendanceRequest): Promise<void> {
+  return withApiFallback(
+    () => apiUpdateStudentAttendance(projectId, meetingId, studentId, data),
+    async () => { console.log(`Обновление посещаемости студента ${studentId} для встречи ${meetingId}`); }
+  );
+}
+
+export async function updateTutorAttendance(projectId: string, meetingId: string, tutorId: string, data: UpdateAttendanceRequest): Promise<void> {
+  return withApiFallback(
+    () => apiUpdateTutorAttendance(projectId, meetingId, tutorId, data),
+    async () => { console.log(`Обновление посещаемости тьютора ${tutorId} для встречи ${meetingId}`); }
+  );
+}
+
+export async function deleteMeeting(projectId: string, meetingId: string): Promise<void> {
+  return withApiFallback(
+    () => apiDeleteMeeting(projectId, meetingId),
+    async () => { console.log(`Удаление встречи ${meetingId} из проекта ${projectId}`); }
+  );
 }
 
 function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
 }
-
-

@@ -14,7 +14,7 @@ const MilestonesWidget = () => {
 
   // Получаем только глобальные milestones, сортируем по дате
   const globalMilestones = useMemo(() => {
-    return mockMilestones
+    return [...mockMilestones]
       .filter(m => m.type === 'global')
       .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
   }, []);

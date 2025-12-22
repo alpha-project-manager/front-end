@@ -64,15 +64,15 @@ export const API_ENDPOINTS = {
 
   // Meetings
   meetings: {
-    create: (projectId: string) => `/api/projects/${projectId}/meetings`,
-    list: (projectId: string) => `/api/projects/${projectId}/meetings`,
-    detail: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
-    update: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
-    delete: (projectId: string, meetingId: string) => `/api/projects/${projectId}/meetings/${meetingId}`,
+    create: (projectId: string) => `/api/meetings/in-project/${projectId}`,
+    list: (projectId: string) => `/api/meetings/in-project/${projectId}`,
+    detail: (projectId: string, meetingId: string) => `/api/meetings/${meetingId}`,
+    update: (projectId: string, meetingId: string) => `/api/meetings/${meetingId}`,
+    delete: (projectId: string, meetingId: string) => `/api/meetings/${meetingId}`,
     updateStudentAttendance: (projectId: string, meetingId: string, studentId: string) =>
-      `/api/projects/${projectId}/meetings/${meetingId}/attendances/student/${studentId}`,
+      `/api/meetings/${meetingId}/attendances/student/${studentId}`,
     updateTutorAttendance: (projectId: string, meetingId: string, tutorId: string) =>
-      `/api/projects/${projectId}/meetings/${meetingId}/attendances/tutor/${tutorId}`,
+      `/api/meetings/${meetingId}/attendances/tutor/${tutorId}`,
   },
 
   // Applications
